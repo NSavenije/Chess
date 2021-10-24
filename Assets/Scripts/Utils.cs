@@ -14,6 +14,47 @@ namespace Assets.Scripts
             return rank * 8 + file;
         }
 
+        public static int GetPieceFromChar(char c)
+        {
+            int piece = 0;
+            char pieceCode = c;
+            if (char.IsUpper(c))
+            {
+                piece = Piece.White;
+                pieceCode = char.ToLower(c);
+            }
+            else
+            {
+                piece = Piece.Black;
+            }
+
+            switch (pieceCode)
+            {
+                case 'p':
+                    piece |= Piece.Pawn;
+                    break;
+                case 'r':
+                    piece |= Piece.Rook;
+                    break;
+                case 'n':
+                    piece |= Piece.Knight;
+                    break;
+                case 'b':
+                    piece |= Piece.Bishop;
+                    break;
+                case 'q':
+                    piece |= Piece.Queen;
+                    break;
+                case 'k':
+                    piece |= Piece.King;
+                    break;
+                default:
+                    piece = Piece.None;
+                    break;
+            }
+            return piece;
+        }
+
         public static string GetSquareNameFromCoordinate(int file, int rank)
         {
             char fileString = (char)(file + 65);

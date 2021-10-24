@@ -23,66 +23,8 @@ namespace Assets.Scripts
             Board = new Board();
             BoardGraphics boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
             boardGraphics.CreateBoardGraphics();
-            LoadFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+            Board.Squares = FenUtils.LoadFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
             boardGraphics.UpdatePieceSprites(Board.Squares);
-        }
-
-        public void LoadFEN(string fen)
-        {
-            //string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-            string[] ranks = fen.Split('/');
-            int[] board = new int[64];
-            for (int rank = 7; rank >= 0; rank--)
-            {
-                for (int file = 0; file < 8; file++)
-                {
-                    char c = ranks[rank][file];
-                    if (char.IsNumber(c))
-                    {
-                        file += (int)char.GetNumericValue(c);
-                        //squarePieceRenderers[file, rank].sprite = pieceSprites[Piece.None];
-                        continue;
-                    }
-                    char pieceCode = c;
-                    int piece = 0;
-                    if (char.IsUpper(c))
-                    {
-                        piece = Piece.White;
-                        pieceCode = char.ToLower(c);
-                    }
-                    else
-                    {
-                        piece = Piece.Black;
-                    }
-                    switch (pieceCode)
-                    {
-                        case 'p':
-                            piece |= Piece.Pawn;
-                            break;
-                        case 'r':
-                            piece |= Piece.Rook;
-                            break;
-                        case 'n':
-                            piece |= Piece.Knight;
-                            break;
-                        case 'b':
-                            piece |= Piece.Bishop;
-                            break;
-                        case 'q':
-                            piece |= Piece.Queen;
-                            break;
-                        case 'k':
-                            piece |= Piece.King;
-                            break;
-                        default:
-                            piece = Piece.None;
-                            break;
-                    }
-                    //squarePieceRenderers[file, 7 - rank].sprite = pieceSprites[piece];
-                    board[(7 - rank) * 8 + file] = piece;
-                }
-            }
-            Board.Squares = board;
         }
 
         void Update()
