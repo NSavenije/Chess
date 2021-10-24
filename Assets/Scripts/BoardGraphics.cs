@@ -8,16 +8,20 @@ namespace Assets.Scripts
     {
         public Color lightSquareColor;
         public Color darkSquareColor;
+        public Color activeSquareColor;
 
         MeshRenderer[,] squareRenderers;
         SpriteRenderer[,] squarePieceRenderers;
+        int activeSquare;
+        Color cachedSquareColor;
         public Sprite[] pieceSprites;
         void Start()
         {
-            CreateBoardGraphics();
+            activeSquare = -1;
+            cachedSquareColor = Color.gray;
         }
 
-        void CreateBoardGraphics()
+        public void CreateBoardGraphics()
         {
             Shader squareShader = Shader.Find("Unlit/Color");
             squareRenderers = new MeshRenderer[8, 8];
@@ -31,7 +35,7 @@ namespace Assets.Scripts
                     Vector2 squarePosition = new Vector2(file - 3.5f, rank - 3.5f);
                     Transform square = GameObject.CreatePrimitive(PrimitiveType.Quad).transform;
                     square.parent = transform;
-                    square.name = GetSquareNameFromCoordinate(file, rank);
+                    square.name = Utils.GetSquareNameFromCoordinate(file, rank);
                     square.position = squarePosition;
                     Material squareMaterial = new Material(squareShader);
                     squareMaterial.color = squareColor;
@@ -44,33 +48,39 @@ namespace Assets.Scripts
                     pieceRenderer.transform.position = squarePosition;
                     pieceRenderer.transform.localScale = Vector3.one * 100 / (2000 / 6f);
                     squarePieceRenderers[file, rank] = pieceRenderer;
-                    //pieceRenderer.sprite = pieceSprites[Piece.Bishop | Piece.White];
-                    
                 }
             }
         }
 
-        private void LoadFEN(string fen)
+        public void SetActiveSquare(int square)
         {
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-            string[] ranks = fen.Split('/');
-            for (int rank = 0; rank < ranks.Length; rank++)
+            (int, int) fr     = Utils.SquareToFileRank(square);
+            (int, int) active = Utils.SquareToFileRank(activeSquare);
+            if (square < 0 || squarePieceRenderers[fr.Item1, fr.Item2].sprite == null)
             {
-                foreach (char c in ranks[rank])
-                {
+                if (cachedSquareColor != Color.gray)
+                    squareRenderers[active.Item1, active.Item2].material.color = cachedSquareColor;
+                cachedSquareColor = Color.gray;
+                activeSquare = -1;
+                return;
+            }
+            if (cachedSquareColor != Color.gray)
+                squareRenderers[active.Item1, active.Item2].material.color = cachedSquareColor;
+            activeSquare = square;
+            cachedSquareColor = squareRenderers[fr.Item1, fr.Item2].material.color;
+            squareRenderers[fr.Item1, fr.Item2].material.color = activeSquareColor;
+        }
 
-                }
+        public void UpdatePieceSprites(int[] pieces)
+        {
+            for(int i = 0; i < 64; i++)
+            {
+                (int, int) fileRank = Utils.SquareToFileRank(i);
+                squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[pieces[i]];
             }
         }
 
-        private string GetSquareNameFromCoordinate(int file, int rank)
-        {
-            char fileString = (char)(file + 65);
-            string squareName = "";
-            squareName += fileString;
-            squareName += (rank + 1);
-            return squareName;
-        }
+        
 
         void Update()
         {
