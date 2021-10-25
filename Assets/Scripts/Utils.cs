@@ -55,6 +55,26 @@ namespace Assets.Scripts
             return piece;
         }
 
+        public static int GetSquareFromCoordinate(Vector3 position)
+        {
+            int file = (int)(Math.Floor(position.x) + 4);
+            int rank = (int)(Math.Floor(position.y) + 4);
+            int square = Utils.FileRankToSquare(file, rank);
+            if (rank >= 0 && rank < 8 && file >= 0 && file < 8)
+                return square;
+            else
+                return -1;
+        }
+
+        public static bool SameColor(bool turnWhite, bool selectedPieceWhite)
+        {
+            if (turnWhite && selectedPieceWhite)
+                return true;
+            if (!turnWhite && !selectedPieceWhite)
+                return true;
+            return false;
+        }
+
         public static string GetSquareNameFromCoordinate(int file, int rank)
         {
             char fileString = (char)(file + 65);

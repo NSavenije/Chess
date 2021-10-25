@@ -9,6 +9,7 @@ namespace Assets.Scripts
         public Color lightSquareColor;
         public Color darkSquareColor;
         public Color activeSquareColor;
+        public Color legalMoveSquareColor;
 
         MeshRenderer[,] squareRenderers;
         SpriteRenderer[,] squarePieceRenderers;
@@ -52,23 +53,33 @@ namespace Assets.Scripts
             }
         }
 
+        public void ResetBoardColors()
+        {
+            for(int i = 0; i < 64; i++)
+            {
+                (int, int) fr = Utils.SquareToFileRank(i);
+                squareRenderers[fr.Item1, fr.Item2].material.color = (fr.Item1 + fr.Item2) % 2 == 0 ? darkSquareColor : lightSquareColor;
+            }
+        }
+
+        public void HighlightLegalMoves(List<int> legalmoves)
+        {
+            foreach(int square in legalmoves)
+            {
+                //Debug.Log("Squarenr " + square);
+                (int, int) fr = Utils.SquareToFileRank(square);
+                squareRenderers[fr.Item1, fr.Item2].material.color = legalMoveSquareColor;
+            }
+        }
+
         public void SetActiveSquare(int square)
         {
-            (int, int) fr     = Utils.SquareToFileRank(square);
-            (int, int) active = Utils.SquareToFileRank(activeSquare);
-            if (square < 0 || squarePieceRenderers[fr.Item1, fr.Item2].sprite == null)
+            ResetBoardColors();
+            if (square >= 0)
             {
-                if (cachedSquareColor != Color.gray)
-                    squareRenderers[active.Item1, active.Item2].material.color = cachedSquareColor;
-                cachedSquareColor = Color.gray;
-                activeSquare = -1;
-                return;
+                (int, int) fr = Utils.SquareToFileRank(square);
+                squareRenderers[fr.Item1, fr.Item2].material.color = activeSquareColor;
             }
-            if (cachedSquareColor != Color.gray)
-                squareRenderers[active.Item1, active.Item2].material.color = cachedSquareColor;
-            activeSquare = square;
-            cachedSquareColor = squareRenderers[fr.Item1, fr.Item2].material.color;
-            squareRenderers[fr.Item1, fr.Item2].material.color = activeSquareColor;
         }
 
         public void UpdatePieceSprites(int[] pieces)
@@ -76,7 +87,7 @@ namespace Assets.Scripts
             for(int i = 0; i < 64; i++)
             {
                 (int, int) fileRank = Utils.SquareToFileRank(i);
-                squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[pieces[i]];
+                squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[pieces[i] % 32];
             }
         }
 

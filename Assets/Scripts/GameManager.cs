@@ -18,49 +18,63 @@ namespace Assets.Scripts
             Selected
         }
 
+        private BoardGraphics boardGraphics;
+
         void Start()
         {
             Board = new Board();
-            BoardGraphics boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
+            boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
             boardGraphics.CreateBoardGraphics();
-            Board.Squares = FenUtils.LoadFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-            boardGraphics.UpdatePieceSprites(Board.Squares);
+            Board.Square = FenUtils.LoadFEN(FenUtils.StartingPosition);
+            boardGraphics.UpdatePieceSprites(Board.Square);
         }
 
         void Update()
         {
-            BoardGraphics bg = BoardGraphics.GetComponent<BoardGraphics>();
             if (Input.GetKeyDown(KeyCode.Mouse0))
             {
-                int square = GetSquareFromCoordinate(Input.mousePosition);
-                // If no square was selected, select a square.
-                if (inputState == InputState.None)
+                Vector3 position = cam.ScreenToWorldPoint(Input.mousePosition);
+                int square = Utils.GetSquareFromCoordinate(position);
+                bool nonEmptySquare = Board.TryGetPieceFromSquare(square, out int piece);
+
+                Debug.Log($"Selecting square: {square}, nes = {nonEmptySquare} and sc = {Utils.SameColor(turnWhite, Piece.IsWhite(piece))} and wp = {Piece.IsWhite(piece)}");
+                // If no square was selected before, select a square.
+                if (inputState == InputState.None && nonEmptySquare && Utils.SameColor(turnWhite, Piece.IsWhite(piece)))
                 {
+                    Debug.Log("Selected square: " + square);
                     Board.ActiveSquare = square;
-                    bg.SetActiveSquare(square);
                     inputState = InputState.Selected;
+                    boardGraphics.SetActiveSquare(square);
+                    Board.SetLegalMoves(square);
+                    boardGraphics.HighlightLegalMoves(Board.legalMoves);
                 }
                 // If a second square is selected, move a piece.
-                else
+                else if (inputState == InputState.Selected)
                 {
+                    if (Board.legalMoves.Contains(square))
+                    {
+                        MovePiece(Board.ActiveSquare, square);
+                        boardGraphics.UpdatePieceSprites(Board.Square);
+                    }
                     Board.ActiveSquare = -1;
-                    bg.SetActiveSquare(-1);
+                    boardGraphics.SetActiveSquare(-1);
                     inputState = InputState.None;
                 }
             }
         }
 
-        private int GetSquareFromCoordinate(Vector3 position)
+        
+
+        private void MovePiece(int selectedSquare, int destinationSquare)
         {
-            position = cam.ScreenToWorldPoint(position);
-            //Debug.Log($"pos = ({Math.Floor(position.x) + 4}, {Math.Floor(position.y) + 4})");
-            int file = (int)(Math.Floor(position.x) + 4);
-            int rank = (int)(Math.Floor(position.y) + 4);
-            int square = Utils.FileRankToSquare(file, rank);
-            if (rank >= 0 && rank < 8 && file >= 0 && file < 8)
-                return square;
-            else
-                return -1;
+            turnWhite = !turnWhite;
+            int piece = Board.Square[selectedSquare];
+            Debug.Log("Piece" + (Convert.ToString(piece, toBase: 2)));
+            piece |= Piece.Moved;
+            Debug.Log("Piece" + (Convert.ToString(piece, toBase: 2)));
+            Board.Square[selectedSquare] = 0;
+            Board.Square[destinationSquare] = piece;
         }
+        
     }
 }
