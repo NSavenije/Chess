@@ -66,6 +66,29 @@ namespace Assets.Scripts
                 return -1;
         }
 
+        public static (int,int) GetFileRankDirFromSquareDir(int dir)
+        {
+            switch (dir) {
+                case -9:
+                    return (-1, -1);
+                case -8:
+                    return (0, -1);
+                case -7:
+                    return (1, -1);
+                case -1:
+                    return (-1, 0);
+                case 1:
+                    return (1, 0);
+                case 7:
+                    return (-1, 1);
+                case 8:
+                    return (0, 1);
+                case 9:
+                    return (1, 1);
+            }
+            return (int.MinValue, int.MinValue);
+        }
+
         public static bool SameColor(bool turnWhite, bool selectedPieceWhite)
         {
             if (turnWhite && selectedPieceWhite)

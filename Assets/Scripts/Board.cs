@@ -30,8 +30,71 @@ namespace Assets.Scripts
         {
             legalMoves.Clear();
             TryGetPieceFromSquare(square, out int piece);
-            
-            for(int i = 0; i < Piece.PawnMoves.Count; i++)
+            if (Piece.GetPieceType(piece) == Piece.PieceType.Pawn)
+            {
+                legalMoves = SetLegalPawnMoves(square, piece);       
+            }
+            else
+            {
+                var movesets = Piece.GetMovesets(piece);
+                foreach (var set in movesets)
+                {
+                    for (int i = 0; i < set.Count; i++)
+                    {
+                        int destination = square + set[i];
+                        if (Piece.IsLongRange(piece))
+                        {
+                            int currentSquare = square;
+                            bool foundOtherPiece = false;
+                            while (SquareExists(currentSquare, set[i]) && !Blocked(piece, destination, foundOtherPiece))
+                            {
+                                if (TryGetPieceFromSquare(destination, out int _))
+                                    foundOtherPiece = true;
+                                legalMoves.Add(destination);
+                                currentSquare = destination;
+                                destination += set[i];
+                            }
+                        }
+                        else
+                        {
+                            if (SquareExists(destination) && !Blocked(piece, destination))
+                                legalMoves.Add(destination);
+                        }
+                    }
+                }
+            }
+        }
+
+        private bool SquareExists(int square, int direction)
+        {
+            if (square + direction < 0 || square + direction > 63)
+                return false;
+            (int, int) fr = Utils.SquareToFileRank(square);
+            (int, int) dir = Utils.GetFileRankDirFromSquareDir(direction);
+            if (fr.Item1 + dir.Item1 < 0 || fr.Item1 + dir.Item1 > 7)
+                return false;
+            if (fr.Item2 + dir.Item2 < 0 || fr.Item2 + dir.Item2 > 7)
+                return false;
+            return true;
+        }
+
+        private bool SquareExists(int destination)
+        {
+            return destination >= 0 && destination < 64;
+        }
+
+        private bool Blocked(int piece, int destination, bool foundOtherPiece = false)
+        {
+            if (TryGetPieceFromSquare(destination, out int target))
+                if (foundOtherPiece || Utils.SameColor(Piece.IsWhite(piece), Piece.IsWhite(target)))
+                    return true;
+            return false;
+        }
+
+        private List<int> SetLegalPawnMoves(int square, int piece)
+        {
+            List<int> moves = new List<int>();
+            for (int i = 0; i < Piece.PawnMoves.Count; i++)
             {
                 if (Piece.HasMoved(piece) && i == 1) break;
                 int destination;
@@ -40,7 +103,7 @@ namespace Assets.Scripts
                 else
                     destination = square - Piece.PawnMoves[i];
                 if (!TryGetPieceFromSquare(destination, out int _))
-                    legalMoves.Add(destination);
+                    moves.Add(destination);
                 else break;
             }
             for (int i = 0; i < Piece.PawnCaptures.Count; i++)
@@ -52,8 +115,9 @@ namespace Assets.Scripts
                     destination = square - Piece.PawnCaptures[i];
                 if (TryGetPieceFromSquare(destination, out int enemyPiece))
                     if (!Utils.SameColor(Piece.IsWhite(piece), Piece.IsWhite(enemyPiece)))
-                        legalMoves.Add(destination);
+                        moves.Add(destination);
             }
+            return moves;
         }
 
         public bool TryGetPieceFromSquare(int square, out int piece)

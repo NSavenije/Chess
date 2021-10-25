@@ -37,11 +37,10 @@ namespace Assets.Scripts
                 int square = Utils.GetSquareFromCoordinate(position);
                 bool nonEmptySquare = Board.TryGetPieceFromSquare(square, out int piece);
 
-                Debug.Log($"Selecting square: {square}, nes = {nonEmptySquare} and sc = {Utils.SameColor(turnWhite, Piece.IsWhite(piece))} and wp = {Piece.IsWhite(piece)}");
+                //Debug.Log($"Selecting square: {square}, nes = {nonEmptySquare} and sc = {Utils.SameColor(turnWhite, Piece.IsWhite(piece))} and wp = {Piece.IsWhite(piece)}");
                 // If no square was selected before, select a square.
                 if (inputState == InputState.None && nonEmptySquare && Utils.SameColor(turnWhite, Piece.IsWhite(piece)))
                 {
-                    Debug.Log("Selected square: " + square);
                     Board.ActiveSquare = square;
                     inputState = InputState.Selected;
                     boardGraphics.SetActiveSquare(square);
@@ -69,9 +68,7 @@ namespace Assets.Scripts
         {
             turnWhite = !turnWhite;
             int piece = Board.Square[selectedSquare];
-            Debug.Log("Piece" + (Convert.ToString(piece, toBase: 2)));
             piece |= Piece.Moved;
-            Debug.Log("Piece" + (Convert.ToString(piece, toBase: 2)));
             Board.Square[selectedSquare] = 0;
             Board.Square[destinationSquare] = piece;
         }
