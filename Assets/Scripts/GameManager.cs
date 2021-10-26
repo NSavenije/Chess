@@ -19,12 +19,14 @@ namespace Assets.Scripts
         }
 
         private BoardGraphics boardGraphics;
+        private List<Move> previousMoves; 
 
         void Start()
         {
             Board = new Board();
             boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
             boardGraphics.CreateBoardGraphics();
+            previousMoves = new List<Move>();
             Board.Squares = FenUtils.LoadFEN(FenUtils.StartingPosition, out List<Piece> pieces);
             Board.Pieces = pieces;
             boardGraphics.UpdatePieceSprites(Board.Squares);
@@ -37,6 +39,7 @@ namespace Assets.Scripts
                 Vector3 position = cam.ScreenToWorldPoint(Input.mousePosition);
                 int square = Utils.GetSquareFromCoordinate(position);
                 bool nonEmptySquare = Board.TryGetPieceFromSquare(square, out Piece piece);
+                Move previousMove = previousMoves.Count == 0 ? new Move(-1, -1, null) : previousMoves[previousMoves.Count - 1];
 
                 //Debug.Log($"Selecting square: {square}, nes = {nonEmptySquare} and sc = {Utils.SameColor(turnWhite, Piece.IsWhite(piece))} and wp = {Piece.IsWhite(piece)}");
                 // If no square was selected before, select a square.
@@ -45,7 +48,7 @@ namespace Assets.Scripts
                     Board.ActiveSquare = square;
                     inputState = InputState.Selected;
                     boardGraphics.SetActiveSquare(square);
-                    Board.legalMoves = Board.FindLegalMoves(piece);
+                    Board.legalMoves = Board.FindLegalMoves(piece, previousMove);
                     boardGraphics.HighlightLegalMoves(Board.legalMoves);
                 }
                 // If a second square is selected, move a piece.
@@ -65,15 +68,29 @@ namespace Assets.Scripts
         
         private void MovePiece(Move move)
         {
+            // House Keeping.
             turnWhite = !turnWhite;
+            previousMoves.Add(move);
+            
+            // Remove Captured Piece.
             if (Board.TryGetPieceFromSquare(move.Target, out Piece targetPiece))
                 Board.Pieces.Remove(targetPiece);
-            Board.TryGetPieceFromSquare(move.Start, out Piece piece);
-            piece.Code |= Piece.Moved;
-            piece.PMoved = true;
-            piece.Square = move.Target;
+
+            if (move.Flag == Move.MFlag.EnPassant)
+            {
+                Move pushMove = previousMoves[previousMoves.Count - 2];
+                Board.Pieces.Remove(pushMove.Piece);
+                Board.Squares[pushMove.Target] = null;
+            }
+
+            // Move and Update the Piece.
+            move.Piece.Code |= Piece.Moved;
+            move.Piece.PMoved = true;
+            move.Piece.Square = move.Target;
+
+            // Update the Board.
             Board.Squares[move.Start] = null;
-            Board.Squares[move.Target] = piece;
+            Board.Squares[move.Target] = move.Piece;
         }
         
     }

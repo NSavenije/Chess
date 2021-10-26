@@ -23,7 +23,6 @@ namespace Assets.Scripts
             public const int PromotionToBishop = 5;
             public const int PromotionToQueen = 6;
             public const int EnPassant = 7;
-            public const int Capture = 8;
         }
 
         public Move(int start, int target, Piece piece, int flag = MFlag.None)

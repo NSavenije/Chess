@@ -28,18 +28,18 @@ namespace Assets.Scripts
             Pieces = new List<Piece>();
         }
         // Generate moves
-        public List<Move> FindLegalMoves(Piece piece, bool checkForChecks = true)
+        public List<Move> FindLegalMoves(Piece piece, Move previousMove, bool checkForChecks = true)
         {
             List<Move> moves = new List<Move>();
             int square = piece.Square;
             if (piece.Type == Piece.PType.Pawn)
             {
-                moves = SetLegalPawnMoves(square, piece);
+                moves = FindLegalPawnMoves(square, piece, previousMove);
             }
             else
             {
-                var movesets = Piece.GetMovesets(piece.Type);
-                List<int> dirs = movesets.SelectMany(x => x).ToList();
+                var moveSets = Piece.GetMovesets(piece.Type);
+                List<int> dirs = moveSets.SelectMany(x => x).ToList();
                 for (int i = 0; i < dirs.Count; i++)
                 {
                     int target = square + dirs[i];
@@ -67,14 +67,14 @@ namespace Assets.Scripts
                 foreach (Move move in moves.ToList())
                 {
                     // If the opponent can capture my king after I do this move, (I was in check or a piece was pinned), dont.
-                    if (WouldResultInKingCapture(square, move))
+                    if (WouldResultInKingCapture(square, move, previousMove))
                         moves.Remove(move);
                 }
             }
             return moves;
         }
 
-        private bool WouldResultInKingCapture(int square, Move move)
+        private bool WouldResultInKingCapture(int square, Move move, Move previousMove)
         {
             if (!TryGetPieceFromSquare(square, out Piece piece))
                 return false;
@@ -92,7 +92,7 @@ namespace Assets.Scripts
             {
                 if (p.Square == move.Target)
                     continue;
-                if (FindLegalMoves(p, false).Exists(x => x.Target == kingSquare))
+                if (FindLegalMoves(p, previousMove, false).Exists(x => x.Target == kingSquare))
                 {
                     //Reset the board to the orignal state.
                     piece.Square = square;
@@ -133,7 +133,7 @@ namespace Assets.Scripts
             return false;
         }
 
-        private List<Move> SetLegalPawnMoves(int square, Piece piece)
+        private List<Move> FindLegalPawnMoves(int square, Piece piece, Move previousMove)
         {
             List<Move> moves = new List<Move>();
             for (int i = 0; i < Piece.PawnMoves.Count; i++)
@@ -161,6 +161,15 @@ namespace Assets.Scripts
                 if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
                     if (!Utils.SameColor(piece, enemyPiece))
                         moves.Add(new Move(square, destination, piece));
+            }
+            // Check for en passent
+            if (previousMove.Flag == Move.MFlag.PawnPush)
+            {
+                int perspective = piece.Color == Piece.PColor.White ? 1 : -1;
+                if (previousMove.Target == square - 1)
+                    moves.Add(new Move(square, square + (7 * perspective), piece, Move.MFlag.EnPassant));
+                else if (previousMove.Target == square + 1)
+                    moves.Add(new Move(square, square + (9 * perspective), piece, Move.MFlag.EnPassant));
             }
             return moves;
         }
