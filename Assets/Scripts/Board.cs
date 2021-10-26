@@ -27,11 +27,10 @@ namespace Assets.Scripts
             legalMoves = new List<int>();
             Pieces = new List<Piece>();
         }
-
+        // Generate moves
         public List<int> FindLegalMoves(Piece piece, bool checkForChecks = true)
         {
             List<int> moves = new List<int>();
-            //legalMoves.Clear();
             int square = piece.Square;
             if (piece.Type == Piece.PType.Pawn)
             {
@@ -82,28 +81,34 @@ namespace Assets.Scripts
         {
             if (!TryGetPieceFromSquare(square, out Piece piece))
                 return false;
-            Debug.Log(piece.Name);
 
             // Do the move that could result in check without checking.
             Piece pieceAtTarget = Squares[move];
             piece.Square = move;
             Squares[square] = null;
-            Squares[move] = piece;
+            Squares[move] = piece;            
             
             // Check if my King can now be captured by any of the opposing pieces.
             int kingSquare = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces)[0].Square;
+            // Remove captured piece from this list
             foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(piece), Pieces))
+            {
+                if (p.Square == move)
+                    continue;
                 if (FindLegalMoves(p, false).Contains(kingSquare))
                 {
                     //Reset the board to the orignal state.
                     piece.Square = square;
                     Squares[square] = piece;
                     Squares[move] = pieceAtTarget;
+                    //Pieces.Add(pieceAtTarget);
                     return true;
                 }
+            }
             piece.Square = square;
             Squares[square] = piece;
             Squares[move] = pieceAtTarget;
+            //Pieces.Add(pieceAtTarget);
             return false;
         }
 
