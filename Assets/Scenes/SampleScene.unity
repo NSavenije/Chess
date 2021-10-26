@@ -154,6 +154,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lightSquareColor: {r: 0.94117653, g: 0.854902, b: 0.70980394, a: 0}
   darkSquareColor: {r: 0.70980394, g: 0.5294118, b: 0.38823533, a: 0}
+  activeSquareColor: {r: 0.764151, g: 0.37126204, b: 0.63753974, a: 0}
+  legalMoveSquareColor: {r: 0.7647059, g: 0.4917059, b: 0.677346, a: 0}
   pieceSprites:
   - {fileID: 0}
   - {fileID: 0}
@@ -276,4 +278,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1159028066
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1159028068}
+  - component: {fileID: 1159028067}
+  m_Layer: 0
+  m_Name: Game Manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1159028067
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1159028066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17a4e12323864344f918a4d6251c57aa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  turnWhite: 1
+  BoardGraphics: {fileID: 220858734}
+  cam: {fileID: 519420031}
+  inputState: 0
+--- !u!4 &1159028068
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1159028066}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

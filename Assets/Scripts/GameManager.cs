@@ -25,8 +25,8 @@ namespace Assets.Scripts
             Board = new Board();
             boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
             boardGraphics.CreateBoardGraphics();
-            Board.Square = FenUtils.LoadFEN(FenUtils.StartingPosition);
-            boardGraphics.UpdatePieceSprites(Board.Square);
+            Board.Squares = FenUtils.LoadFEN(FenUtils.StartingPosition);
+            boardGraphics.UpdatePieceSprites(Board.Squares);
         }
 
         void Update()
@@ -53,7 +53,7 @@ namespace Assets.Scripts
                     if (Board.legalMoves.Contains(square))
                     {
                         MovePiece(Board.ActiveSquare, square);
-                        boardGraphics.UpdatePieceSprites(Board.Square);
+                        boardGraphics.UpdatePieceSprites(Board.Squares);
                     }
                     Board.ActiveSquare = -1;
                     boardGraphics.SetActiveSquare(-1);
@@ -61,16 +61,14 @@ namespace Assets.Scripts
                 }
             }
         }
-
         
-
         private void MovePiece(int selectedSquare, int destinationSquare)
         {
             turnWhite = !turnWhite;
-            int piece = Board.Square[selectedSquare];
+            int piece = Board.Squares[selectedSquare];
             piece |= Piece.Moved;
-            Board.Square[selectedSquare] = 0;
-            Board.Square[destinationSquare] = piece;
+            Board.Squares[selectedSquare] = 0;
+            Board.Squares[destinationSquare] = piece;
         }
         
     }

@@ -6,7 +6,7 @@ namespace Assets.Scripts
 {
     public static class Piece
     {
-        public const int None =   0;
+        public const int None =   0; // 0-2nd
         public const int Pawn =   1;
         public const int Rook =   2;
         public const int Knight = 3;

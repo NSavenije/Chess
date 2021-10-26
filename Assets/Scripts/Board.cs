@@ -11,7 +11,7 @@ namespace Assets.Scripts
     public class Board
     {
         int[] _square = new int[64];
-        public int[] Square
+        public int[] Squares
         {
             get { return _square; }
             set { _square = value; }
@@ -63,6 +63,82 @@ namespace Assets.Scripts
                     }
                 }
             }
+            //foreach (int move in legalMoves.ToList())
+            //{
+            //    if (WouldResultInKingCapture(square, move))
+            //        legalMoves.Remove(move);
+            //}
+        }
+
+        private List<int> FindLegalMoves(int square)
+        {
+            List<int> moves = new List<int>();
+            TryGetPieceFromSquare(square, out int piece);
+            if (Piece.GetPieceType(piece) == Piece.PieceType.Pawn)
+            {
+                moves = SetLegalPawnMoves(square, piece);
+            }
+            else
+            {
+                var movesets = Piece.GetMovesets(piece);
+                foreach (var set in movesets)
+                {
+                    for (int i = 0; i < set.Count; i++)
+                    {
+                        int destination = square + set[i];
+                        if (Piece.IsLongRange(piece))
+                        {
+                            int currentSquare = square;
+                            bool foundOtherPiece = false;
+                            while (SquareExists(currentSquare, set[i]) && !Blocked(piece, destination, foundOtherPiece))
+                            {
+                                if (TryGetPieceFromSquare(destination, out int _))
+                                    foundOtherPiece = true;
+                                moves.Add(destination);
+                                currentSquare = destination;
+                                destination += set[i];
+                            }
+                        }
+                        else
+                        {
+                            if (SquareExists(destination) && !Blocked(piece, destination))
+                                moves.Add(destination);
+                        }
+                    }
+                }
+            }
+            return moves;
+        }
+
+        private bool WouldResultInKingCapture(int square, int move)
+        {
+            int[] newBoard = Squares;
+            TryGetPieceFromSquare(square, out int piece);
+            newBoard[move] = piece;
+            newBoard[square] = 0;
+            int kingSquare = -1;
+            List<int> pieces = new List<int>();
+            bool whitePerspective = Piece.IsWhite(piece);
+            for (int sq = 0; sq < 64; sq++)
+            {
+                if (TryGetPieceFromSquare(sq, out int pc))
+                    if (Piece.GetPieceType(pc) == Piece.PieceType.King)
+                        if (!Utils.SameColor(Piece.IsWhite(pc), whitePerspective))
+                        {
+                            kingSquare = sq;
+                            break;
+                        }
+            }
+            if (kingSquare == -1)
+                Debug.LogError("Enemy king not found");
+            for (int sq = 0; sq < 64; sq++)
+            {
+                if (TryGetPieceFromSquare(sq, out int pc))
+                    if (Utils.SameColor(Piece.IsWhite(pc), whitePerspective))
+                        if (FindLegalMoves(sq).Contains(kingSquare))
+                            return true;
+            }
+            return false;
         }
 
         private bool SquareExists(int square, int direction)
