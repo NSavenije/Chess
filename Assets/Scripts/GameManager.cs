@@ -83,6 +83,13 @@ namespace Assets.Scripts
                 Board.Squares[pushMove.Target] = null;
             }
 
+            if (move.Flag == Move.MFlag.PromotionToQueen)
+            {
+                move.Piece.Type = Piece.PType.Queen;
+                move.Piece.Code |= 4;
+                move.Piece.LongRange = true;
+            }
+
             // Move and Update the Piece.
             move.Piece.Code |= Piece.Moved;
             move.Piece.PMoved = true;

@@ -139,29 +139,34 @@ namespace Assets.Scripts
             for (int i = 0; i < Piece.PawnMoves.Count; i++)
             {
                 if (piece.PMoved && i == 1) break;
-                int destination;
+                int destination; int flag = 0;
                 if (piece.Color == Piece.PColor.White)
                     destination = square + Piece.PawnMoves[i];
                 else
                     destination = square - Piece.PawnMoves[i];
+                if (destination < 8 || destination > 54)
+                    flag = Move.MFlag.PromotionToQueen;
                 if (!TryGetPieceFromSquare(destination, out Piece _))
                 {
-                    if (i == 0) moves.Add(new Move(square, destination, piece));
+                    if (i == 0) moves.Add(new Move(square, destination, piece, flag));
                     else moves.Add(new Move(square, destination, piece, Move.MFlag.PawnPush));
                 }
                 else break;
             }
             for (int i = 0; i < Piece.PawnCaptures.Count; i++)
             {
-                int destination;
+                int destination; int flag = Move.MFlag.None;
                 if (piece.Color == Piece.PColor.White)
                     destination = square + Piece.PawnCaptures[i];
                 else
                     destination = square - Piece.PawnCaptures[i];
+                if (destination < 8 || destination > 54)
+                    flag = Move.MFlag.PromotionToQueen;
                 if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
                     if (!Utils.SameColor(piece, enemyPiece))
-                        moves.Add(new Move(square, destination, piece));
+                        moves.Add(new Move(square, destination, piece, flag));
             }
+
             // Check for en passent
             if (previousMove.Flag == Move.MFlag.PawnPush)
             {
