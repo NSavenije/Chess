@@ -82,12 +82,15 @@ namespace Assets.Scripts
             }
         }
 
-        public void UpdatePieceSprites(int[] pieces)
+        public void UpdatePieceSprites(Piece[] pieces)
         {
             for(int i = 0; i < 64; i++)
             {
                 (int, int) fileRank = Utils.SquareToFileRank(i);
-                squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[pieces[i] % 32];
+                if (pieces[i] != null)
+                    squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[pieces[i].Code % 32];
+                else
+                    squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[0];
             }
         }
 

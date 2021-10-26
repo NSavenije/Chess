@@ -10,12 +10,13 @@ namespace Assets.Scripts
 {
     public class Board
     {
-        int[] _square = new int[64];
-        public int[] Squares
+        Piece[] _square = new Piece[64];
+        public Piece[] Squares
         {
             get { return _square; }
             set { _square = value; }
         }
+        public List<Piece> Pieces;
 
         public List<int> legalMoves;
 
@@ -24,31 +25,32 @@ namespace Assets.Scripts
         {
             ActiveSquare = -1;
             legalMoves = new List<int>();
+            Pieces = new List<Piece>();
         }
 
-        public void SetLegalMoves(int square)
+        public void SetLegalMoves(Piece piece)
         {
             legalMoves.Clear();
-            TryGetPieceFromSquare(square, out int piece);
-            if (Piece.GetPieceType(piece) == Piece.PieceType.Pawn)
+            int square = piece.Square;
+            if (piece.Type == Piece.PType.Pawn)
             {
                 legalMoves = SetLegalPawnMoves(square, piece);       
             }
             else
             {
-                var movesets = Piece.GetMovesets(piece);
+                var movesets = Piece.GetMovesets(piece.Type);
                 foreach (var set in movesets)
                 {
                     for (int i = 0; i < set.Count; i++)
                     {
                         int destination = square + set[i];
-                        if (Piece.IsLongRange(piece))
+                        if (piece.LongRange)
                         {
                             int currentSquare = square;
                             bool foundOtherPiece = false;
                             while (SquareExists(currentSquare, set[i]) && !Blocked(piece, destination, foundOtherPiece))
                             {
-                                if (TryGetPieceFromSquare(destination, out int _))
+                                if (TryGetPieceFromSquare(destination, out Piece _))
                                     foundOtherPiece = true;
                                 legalMoves.Add(destination);
                                 currentSquare = destination;
@@ -70,29 +72,29 @@ namespace Assets.Scripts
             //}
         }
 
-        private List<int> FindLegalMoves(int square)
+        private List<int> FindLegalMoves(Piece piece)
         {
             List<int> moves = new List<int>();
-            TryGetPieceFromSquare(square, out int piece);
-            if (Piece.GetPieceType(piece) == Piece.PieceType.Pawn)
+            int square = piece.Square;
+            if (piece.Type == Piece.PType.Pawn)
             {
                 moves = SetLegalPawnMoves(square, piece);
             }
             else
             {
-                var movesets = Piece.GetMovesets(piece);
+                var movesets = Piece.GetMovesets(piece.Type);
                 foreach (var set in movesets)
                 {
                     for (int i = 0; i < set.Count; i++)
                     {
                         int destination = square + set[i];
-                        if (Piece.IsLongRange(piece))
+                        if (piece.LongRange)
                         {
                             int currentSquare = square;
                             bool foundOtherPiece = false;
                             while (SquareExists(currentSquare, set[i]) && !Blocked(piece, destination, foundOtherPiece))
                             {
-                                if (TryGetPieceFromSquare(destination, out int _))
+                                if (TryGetPieceFromSquare(destination, out Piece _))
                                     foundOtherPiece = true;
                                 moves.Add(destination);
                                 currentSquare = destination;
@@ -112,32 +114,24 @@ namespace Assets.Scripts
 
         private bool WouldResultInKingCapture(int square, int move)
         {
-            int[] newBoard = Squares;
-            TryGetPieceFromSquare(square, out int piece);
+            Piece[] newBoard = Squares;
+            TryGetPieceFromSquare(square, out Piece piece);
+            Piece oldDestPiece = newBoard[move];
             newBoard[move] = piece;
-            newBoard[square] = 0;
-            int kingSquare = -1;
-            List<int> pieces = new List<int>();
-            bool whitePerspective = Piece.IsWhite(piece);
-            for (int sq = 0; sq < 64; sq++)
+            piece.Square = move;
+            newBoard[square] = null;
+            int kingSquare = Piece.GetPieces(Piece.PType.King, Piece.GetOtherColor(piece), Pieces)[0].Square;
+            foreach(Piece p in Piece.GetPieces(Piece.GetColor(piece), Pieces))
             {
-                if (TryGetPieceFromSquare(sq, out int pc))
-                    if (Piece.GetPieceType(pc) == Piece.PieceType.King)
-                        if (!Utils.SameColor(Piece.IsWhite(pc), whitePerspective))
-                        {
-                            kingSquare = sq;
-                            break;
-                        }
+                if (FindLegalMoves(p).Contains(kingSquare))
+                {
+                    piece.Square = square;
+                    Squares[move] = oldDestPiece;
+                    return true;
+                }
             }
-            if (kingSquare == -1)
-                Debug.LogError("Enemy king not found");
-            for (int sq = 0; sq < 64; sq++)
-            {
-                if (TryGetPieceFromSquare(sq, out int pc))
-                    if (Utils.SameColor(Piece.IsWhite(pc), whitePerspective))
-                        if (FindLegalMoves(sq).Contains(kingSquare))
-                            return true;
-            }
+            piece.Square = square;
+            Squares[move] = oldDestPiece;
             return false;
         }
 
@@ -159,51 +153,51 @@ namespace Assets.Scripts
             return destination >= 0 && destination < 64;
         }
 
-        private bool Blocked(int piece, int destination, bool foundOtherPiece = false)
+        private bool Blocked(Piece piece, int destination, bool foundOtherPiece = false)
         {
-            if (TryGetPieceFromSquare(destination, out int target))
-                if (foundOtherPiece || Utils.SameColor(Piece.IsWhite(piece), Piece.IsWhite(target)))
+            if (TryGetPieceFromSquare(destination, out Piece target))
+                if (foundOtherPiece || Utils.SameColor(piece, target))
                     return true;
             return false;
         }
 
-        private List<int> SetLegalPawnMoves(int square, int piece)
+        private List<int> SetLegalPawnMoves(int square, Piece piece)
         {
             List<int> moves = new List<int>();
             for (int i = 0; i < Piece.PawnMoves.Count; i++)
             {
-                if (Piece.HasMoved(piece) && i == 1) break;
+                if (piece.PMoved && i == 1) break;
                 int destination;
-                if (Piece.IsWhite(piece))
+                if (piece.Color == Piece.PColor.White)
                     destination = square + Piece.PawnMoves[i];
                 else
                     destination = square - Piece.PawnMoves[i];
-                if (!TryGetPieceFromSquare(destination, out int _))
+                if (!TryGetPieceFromSquare(destination, out Piece _))
                     moves.Add(destination);
                 else break;
             }
             for (int i = 0; i < Piece.PawnCaptures.Count; i++)
             {
                 int destination;
-                if (Piece.IsWhite(piece))
+                if (piece.Color == Piece.PColor.White)
                     destination = square + Piece.PawnCaptures[i];
                 else
                     destination = square - Piece.PawnCaptures[i];
-                if (TryGetPieceFromSquare(destination, out int enemyPiece))
-                    if (!Utils.SameColor(Piece.IsWhite(piece), Piece.IsWhite(enemyPiece)))
+                if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
+                    if (!Utils.SameColor(piece, enemyPiece))
                         moves.Add(destination);
             }
             return moves;
         }
 
-        public bool TryGetPieceFromSquare(int square, out int piece)
+        public bool TryGetPieceFromSquare(int square, out Piece piece)
         {
-            if (_square[square] > 0)
+            if (_square[square] != null)
             {
                 piece = _square[square];
                 return true;
             }
-            piece = -1;
+            piece = null;
             return false;
         }
     }

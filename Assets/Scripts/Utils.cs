@@ -98,6 +98,11 @@ namespace Assets.Scripts
             return false;
         }
 
+        public static bool SameColor(Piece p1, Piece p2)
+        {
+            return p1.Color == p2.Color;
+        }
+
         public static string GetSquareNameFromCoordinate(int file, int rank)
         {
             char fileString = (char)(file + 65);

@@ -10,11 +10,12 @@ namespace Assets.Scripts
     {
         public static string StartingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 
-        public static int[] LoadFEN(string fen)
+        public static Piece[] LoadFEN(string fen, out List<Piece> pieces)
         {
             //string startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             string[] ranks = fen.Split('/');
-            int[] board = new int[64];
+            Piece[] board = new Piece[64];
+            pieces = new List<Piece>();
             for (int rank = 7; rank >= 0; rank--)
             {
                 for (int file = 0; file < 8; file++)
@@ -25,8 +26,11 @@ namespace Assets.Scripts
                         file += (int)char.GetNumericValue(c);
                         continue;
                     }
-                    int piece = Utils.GetPieceFromChar(c);
-                    board[(7 - rank) * 8 + file] = piece;
+                    int pieceCode = Utils.GetPieceFromChar(c);
+                    int square = (7 - rank) * 8 + file;
+                    Piece piece = new Piece(pieceCode, square, false);
+                    pieces.Add(piece);
+                    board[square] = piece;
                 }
             }
             return board;

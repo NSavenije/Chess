@@ -4,8 +4,25 @@ using UnityEngine;
 
 namespace Assets.Scripts
 {
-    public static class Piece
+    public class Piece
     {
+        public int Code;
+        public PType Type;
+        public PColor Color;
+        public int Square;
+        public bool PMoved = false;
+        public bool LongRange = false;
+
+        public Piece(int code, int square, bool moved)
+        {
+            Code = code;
+            Type = GetPieceType(code);
+            Color = GetColor(code);
+            Square = square;
+            PMoved = moved;
+            LongRange = IsLongRange(code);
+        }
+
         public const int None =   0; // 0-2nd
         public const int Pawn =   1;
         public const int Rook =   2;
@@ -25,7 +42,7 @@ namespace Assets.Scripts
         public static List<int> diagonals = new List<int> { -9, -7, 7, 9 };
         public static List<int> knightJumps = new List<int> { -17, -15, -10, -6, 6, 10, 15, 17 };
 
-        public enum PieceType{
+        public enum PType{
             None,
             Pawn,
             Rook,
@@ -33,6 +50,43 @@ namespace Assets.Scripts
             Bishop,
             Queen,
             King
+        }
+
+        public enum PColor
+        {
+            None,
+            White,
+            Black
+        }
+
+        public static PColor GetColor(Piece p)
+        {
+            return GetColor(p.Code);
+        }
+
+        public static PColor GetOtherColor(Piece p)
+        {
+            return GetOtherColor(p.Color);
+        }
+
+        public static PColor GetOtherColor(PColor p)
+        {
+            return p == PColor.White ? PColor.Black : PColor.White;
+        }
+
+        public static List<Piece> GetPieces(PType type, PColor color, List<Piece> pieces)
+        {
+            return pieces.FindAll(delegate (Piece p) { return p.Type == type && p.Color == color; });
+        }
+
+        public static List<Piece> GetPieces(PColor color, List<Piece> pieces)
+        {
+            return pieces.FindAll(delegate (Piece p) { return p.Color == color; });
+        }
+
+        public static PColor GetColor(int pieceCode)
+        {
+            return IsWhite(pieceCode) ? PColor.White : PColor.Black;
         }
 
         static bool IsBitSet(int b, int pos)
@@ -55,29 +109,29 @@ namespace Assets.Scripts
             return false;
         }
 
-        public static List<List<int>> GetMovesets(PieceType type)
+        public static List<List<int>> GetMovesets(PType type)
         {
             List<List<int>> movesets = new List<List<int>>();
             switch (type)
             {
-                case PieceType.Pawn:
+                case PType.Pawn:
                     movesets.Add(PawnMoves);
                     movesets.Add(PawnCaptures);
                     break;
-                case PieceType.Rook:
+                case PType.Rook:
                     movesets.Add(slides);
                     break;
-                case PieceType.Knight:
+                case PType.Knight:
                     movesets.Add(knightJumps);
                     break;
-                case PieceType.Bishop:
+                case PType.Bishop:
                     movesets.Add(diagonals);
                     break;
-                case PieceType.Queen:
+                case PType.Queen:
                     movesets.Add(diagonals);
                     movesets.Add(slides);
                     break;
-                case PieceType.King:
+                case PType.King:
                     movesets.Add(diagonals);
                     movesets.Add(slides);
                     break;
@@ -92,31 +146,31 @@ namespace Assets.Scripts
             return GetMovesets(GetPieceType(piece));
         }
 
-        public static PieceType GetPieceType(int piece)
+        public static PType GetPieceType(int piece)
         {
             int type = piece % 8;
-            PieceType res;
+            PType res;
             switch (type) {
                 case 1:
-                    res = PieceType.Pawn;
+                    res = PType.Pawn;
                     break;
                 case 2:
-                    res = PieceType.Rook;
+                    res = PType.Rook;
                     break;
                 case 3:
-                    res = PieceType.Knight;
+                    res = PType.Knight;
                     break;
                 case 4:
-                    res = PieceType.Bishop;
+                    res = PType.Bishop;
                     break;
                 case 5:
-                    res = PieceType.Queen;
+                    res = PType.Queen;
                     break;
                 case 6:
-                    res = PieceType.King;
+                    res = PType.King;
                     break;
                 default:
-                    res = PieceType.None;
+                    res = PType.None;
                     break;
             }
             //Debug.Log("type " + type + " res " + res);
