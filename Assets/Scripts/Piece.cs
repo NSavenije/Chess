@@ -6,6 +6,9 @@ namespace Assets.Scripts
 {
     public class Piece
     {
+        public string Name {
+            get { return GetPieceName(this); } 
+        }
         public int Code;
         public PType Type;
         public PColor Color;
@@ -57,6 +60,35 @@ namespace Assets.Scripts
             None,
             White,
             Black
+        }
+
+        private static string GetPieceName(Piece p)
+        {
+            string name = "";
+            switch (p.Type)
+            {
+                case PType.Rook:
+                    name += "R";
+                    break;
+                case PType.Knight:
+                    name += "N";
+                    break;
+                case PType.Bishop:
+                    name += "B";
+                    break;
+                case PType.Queen:
+                    name += "Q";
+                    break;
+                case PType.King:
+                    name += "K";
+                    break;
+                default:
+                    break;
+                
+            }
+            var fr = Utils.SquareToFileRank(p.Square);
+            name += Utils.GetSquareNameFromCoordinate(fr.Item1, fr.Item2);
+            return name;
         }
 
         public static PColor GetColor(Piece p)

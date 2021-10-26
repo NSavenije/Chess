@@ -65,11 +65,12 @@ namespace Assets.Scripts
                     }
                 }
             }
-            //foreach (int move in legalMoves.ToList())
-            //{
-            //    if (WouldResultInKingCapture(square, move))
-            //        legalMoves.Remove(move);
-            //}
+            foreach (int move in legalMoves.ToList())
+            {
+                // If the opponent can capture my king after I do this move, (I was in check or a piece was pinned), dont.
+                if (WouldResultInKingCapture(square, move))
+                    legalMoves.Remove(move);
+            }
         }
 
         private List<int> FindLegalMoves(Piece piece)
@@ -114,24 +115,30 @@ namespace Assets.Scripts
 
         private bool WouldResultInKingCapture(int square, int move)
         {
-            Piece[] newBoard = Squares;
-            TryGetPieceFromSquare(square, out Piece piece);
-            Piece oldDestPiece = newBoard[move];
-            newBoard[move] = piece;
+            if (!TryGetPieceFromSquare(square, out Piece piece))
+                return false;
+            Debug.Log(piece.Name);
+
+            // Do the move that could result in check without checking.
+            Piece pieceAtTarget = Squares[move];
             piece.Square = move;
-            newBoard[square] = null;
-            int kingSquare = Piece.GetPieces(Piece.PType.King, Piece.GetOtherColor(piece), Pieces)[0].Square;
-            foreach(Piece p in Piece.GetPieces(Piece.GetColor(piece), Pieces))
-            {
+            Squares[square] = null;
+            Squares[move] = piece;
+            
+            // Check if my King can now be captured by any of the opposing pieces.
+            int kingSquare = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces)[0].Square;
+            foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(piece), Pieces))
                 if (FindLegalMoves(p).Contains(kingSquare))
                 {
+                    //Reset the board to the orignal situ.
                     piece.Square = square;
-                    Squares[move] = oldDestPiece;
+                    Squares[square] = piece;
+                    Squares[move] = pieceAtTarget;
                     return true;
                 }
-            }
             piece.Square = square;
-            Squares[move] = oldDestPiece;
+            Squares[square] = piece;
+            Squares[move] = pieceAtTarget;
             return false;
         }
 

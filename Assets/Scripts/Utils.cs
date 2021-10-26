@@ -105,7 +105,7 @@ namespace Assets.Scripts
 
         public static string GetSquareNameFromCoordinate(int file, int rank)
         {
-            char fileString = (char)(file + 65);
+            char fileString = char.ToLower((char)(file + 65));
             string squareName = "";
             squareName += fileString;
             squareName += (rank + 1);
