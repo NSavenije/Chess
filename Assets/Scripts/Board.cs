@@ -28,13 +28,14 @@ namespace Assets.Scripts
             Pieces = new List<Piece>();
         }
 
-        public void SetLegalMoves(Piece piece)
+        public List<int> FindLegalMoves(Piece piece, bool checkForChecks = true)
         {
-            legalMoves.Clear();
+            List<int> moves = new List<int>();
+            //legalMoves.Clear();
             int square = piece.Square;
             if (piece.Type == Piece.PType.Pawn)
             {
-                legalMoves = SetLegalPawnMoves(square, piece);       
+                moves = SetLegalPawnMoves(square, piece);       
             }
             else
             {
@@ -52,62 +53,26 @@ namespace Assets.Scripts
                             {
                                 if (TryGetPieceFromSquare(destination, out Piece _))
                                     foundOtherPiece = true;
-                                legalMoves.Add(destination);
+                                moves.Add(destination);
                                 currentSquare = destination;
                                 destination += set[i];
                             }
                         }
                         else
                         {
-                            if (SquareExists(destination) && !Blocked(piece, destination))
-                                legalMoves.Add(destination);
+                            if (SquareExists(square, set[i]) && !Blocked(piece, destination))
+                                moves.Add(destination);
                         }
                     }
                 }
             }
-            foreach (int move in legalMoves.ToList())
+            if (checkForChecks)
             {
-                // If the opponent can capture my king after I do this move, (I was in check or a piece was pinned), dont.
-                if (WouldResultInKingCapture(square, move))
-                    legalMoves.Remove(move);
-            }
-        }
-
-        private List<int> FindLegalMoves(Piece piece)
-        {
-            List<int> moves = new List<int>();
-            int square = piece.Square;
-            if (piece.Type == Piece.PType.Pawn)
-            {
-                moves = SetLegalPawnMoves(square, piece);
-            }
-            else
-            {
-                var movesets = Piece.GetMovesets(piece.Type);
-                foreach (var set in movesets)
+                foreach (int move in moves.ToList())
                 {
-                    for (int i = 0; i < set.Count; i++)
-                    {
-                        int destination = square + set[i];
-                        if (piece.LongRange)
-                        {
-                            int currentSquare = square;
-                            bool foundOtherPiece = false;
-                            while (SquareExists(currentSquare, set[i]) && !Blocked(piece, destination, foundOtherPiece))
-                            {
-                                if (TryGetPieceFromSquare(destination, out Piece _))
-                                    foundOtherPiece = true;
-                                moves.Add(destination);
-                                currentSquare = destination;
-                                destination += set[i];
-                            }
-                        }
-                        else
-                        {
-                            if (SquareExists(destination) && !Blocked(piece, destination))
-                                moves.Add(destination);
-                        }
-                    }
+                    // If the opponent can capture my king after I do this move, (I was in check or a piece was pinned), dont.
+                    if (WouldResultInKingCapture(square, move))
+                        moves.Remove(move);
                 }
             }
             return moves;
@@ -128,9 +93,9 @@ namespace Assets.Scripts
             // Check if my King can now be captured by any of the opposing pieces.
             int kingSquare = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces)[0].Square;
             foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(piece), Pieces))
-                if (FindLegalMoves(p).Contains(kingSquare))
+                if (FindLegalMoves(p, false).Contains(kingSquare))
                 {
-                    //Reset the board to the orignal situ.
+                    //Reset the board to the orignal state.
                     piece.Square = square;
                     Squares[square] = piece;
                     Squares[move] = pieceAtTarget;

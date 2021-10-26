@@ -45,7 +45,7 @@ namespace Assets.Scripts
                     Board.ActiveSquare = square;
                     inputState = InputState.Selected;
                     boardGraphics.SetActiveSquare(square);
-                    Board.SetLegalMoves(piece);
+                    Board.legalMoves = Board.FindLegalMoves(piece);
                     boardGraphics.HighlightLegalMoves(Board.legalMoves);
                 }
                 // If a second square is selected, move a piece.
