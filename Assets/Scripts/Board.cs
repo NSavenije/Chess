@@ -17,10 +17,12 @@ namespace Assets.Scripts
             set { _square = value; }
         }
         public List<Piece> Pieces;
-
         public List<Move> legalMoves;
-
         public int ActiveSquare;
+
+        private List<int> whiteControlledSquares;
+        private List<int> blackControlledSquares;
+
         public Board()
         {
             ActiveSquare = -1;
@@ -32,6 +34,11 @@ namespace Assets.Scripts
         {
             List<Move> moves = new List<Move>();
             int square = piece.Square;
+            if (piece.Type == Piece.PType.King)
+            {
+                Debug.Log($"Step 1: King selected. name {piece.Name}, type {piece.Type}");
+                moves = FindCastlingMoves(piece, previousMove);
+            }
             if (piece.Type == Piece.PType.Pawn)
             {
                 moves = FindLegalPawnMoves(square, piece, previousMove);
@@ -131,6 +138,52 @@ namespace Assets.Scripts
                 if (foundOtherPiece || Utils.SameColor(piece, target))
                     return true;
             return false;
+        }
+
+        private List<Move> FindCastlingMoves(Piece king, Move previousMove)
+        {
+            List<Move> moves = new List<Move>();
+            if (!king.PMoved)
+            {
+                var rooks = Piece.GetPieces(Piece.PType.Rook, king.Color, Pieces);
+                foreach (var rook in rooks)
+                {
+                    // This rook and king havent moved, check if the squares between them are open
+                    if (!rook.PMoved)
+                    {
+                        if (rook.Square > king.Square) // King Side
+                        {
+                            bool allEmpty = true;
+                            for (int s = king.Square + 1; s < rook.Square; s++)
+                                if (TryGetPieceFromSquare(s, out _))
+                                {
+                                    allEmpty = false;
+                                    break;
+                                }
+                            if (allEmpty)
+                            {
+                                foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
+                                    if (!FindLegalMoves(p, previousMove, false).Exists(x => x.Target == king.Square || x.Target == king.Square + 1 || x.Target == king.Square + 2))
+                                    {
+                                        moves.Add(new Move(king.Square, king.Square + 2, king, Move.MFlag.Castling));
+                                    }
+                            }
+                        }
+                        else // Queen side
+                        {
+                            bool allEmpty = true;
+                            for (int s = king.Square - 1; s > rook.Square; s--)
+                                if (TryGetPieceFromSquare(s, out _))
+                                    allEmpty = false;
+                            if (allEmpty)
+                                foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
+                                    if (!FindLegalMoves(p, previousMove, false).Exists(x => x.Target == king.Square || x.Target == king.Square - 1 || x.Target == king.Square - 2))
+                                        moves.Add(new Move(king.Square, king.Square - 2, king, Move.MFlag.Castling));
+                        }
+                    }
+                }
+            }
+            return moves;
         }
 
         private List<Move> FindLegalPawnMoves(int square, Piece piece, Move previousMove)

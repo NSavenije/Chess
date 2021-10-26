@@ -90,6 +90,23 @@ namespace Assets.Scripts
                 move.Piece.LongRange = true;
             }
 
+            if (move.Flag == Move.MFlag.Castling)
+            {
+                List<Piece> rooks = Piece.GetPieces(Piece.PType.Rook, move.Piece.Color, Board.Pieces);
+                bool kingSide = move.Start < move.Target;
+                Piece rook = kingSide ? rooks.Find(r => r.Square > move.Piece.Square) : rooks.Find(r => r.Square < move.Piece.Square);
+                int target = kingSide ? move.Target - 1 : move.Target + 1;
+
+                // Update the Board
+                Board.Squares[rook.Square] = null;
+                Board.Squares[target] = rook;
+
+                // Move and Update the Rook;
+                rook.Code |= Piece.Moved;
+                rook.PMoved = true;
+                rook.Square = target;
+            }
+
             // Move and Update the Piece.
             move.Piece.Code |= Piece.Moved;
             move.Piece.PMoved = true;
