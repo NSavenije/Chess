@@ -51,9 +51,9 @@ namespace Assets.Scripts
                 // If a second square is selected, move a piece.
                 else if (inputState == InputState.Selected)
                 {
-                    if (Board.legalMoves.Contains(square))
+                    if (Board.legalMoves.Exists(x => x.Target == square))
                     {
-                        MovePiece(Board.ActiveSquare, square);
+                        MovePiece(Board.legalMoves.Find(x => x.Target == square));
                         boardGraphics.UpdatePieceSprites(Board.Squares);
                     }
                     Board.ActiveSquare = -1;
@@ -63,15 +63,17 @@ namespace Assets.Scripts
             }
         }
         
-        private void MovePiece(int selectedSquare, int destinationSquare)
+        private void MovePiece(Move move)
         {
             turnWhite = !turnWhite;
-            Piece piece = Board.Squares[selectedSquare];
+            if (Board.TryGetPieceFromSquare(move.Target, out Piece targetPiece))
+                Board.Pieces.Remove(targetPiece);
+            Board.TryGetPieceFromSquare(move.Start, out Piece piece);
             piece.Code |= Piece.Moved;
             piece.PMoved = true;
-            piece.Square = destinationSquare;
-            Board.Squares[selectedSquare] = null;
-            Board.Squares[destinationSquare] = piece;
+            piece.Square = move.Target;
+            Board.Squares[move.Start] = null;
+            Board.Squares[move.Target] = piece;
         }
         
     }

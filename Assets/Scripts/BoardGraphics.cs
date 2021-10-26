@@ -62,12 +62,12 @@ namespace Assets.Scripts
             }
         }
 
-        public void HighlightLegalMoves(List<int> legalmoves)
+        public void HighlightLegalMoves(List<Move> legalmoves)
         {
-            foreach(int square in legalmoves)
+            foreach(Move square in legalmoves)
             {
                 //Debug.Log("Squarenr " + square);
-                (int, int) fr = Utils.SquareToFileRank(square);
+                (int, int) fr = Utils.SquareToFileRank(square.Target);
                 squareRenderers[fr.Item1, fr.Item2].material.color = legalMoveSquareColor;
             }
         }
