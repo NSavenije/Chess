@@ -18,11 +18,12 @@ namespace Assets.Scripts
             public const int None = 0;
             public const int PawnPush = 1;
             public const int Castling = 2;
-            public const int PromotionToRook = 3;
-            public const int PromotionToKnight = 4;
-            public const int PromotionToBishop = 5;
-            public const int PromotionToQueen = 6;
-            public const int EnPassant = 7;
+            public const int Promoting = 3;
+            public const int PromotionToRook = 4;
+            public const int PromotionToKnight = 5;
+            public const int PromotionToBishop = 6;
+            public const int PromotionToQueen = 7;
+            public const int EnPassant = 8;
         }
 
         public Move(int start, int target, Piece piece, int flag = MFlag.None)

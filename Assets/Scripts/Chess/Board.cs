@@ -36,7 +36,6 @@ namespace Assets.Scripts
             int square = piece.Square;
             if (piece.Type == Piece.PType.King)
             {
-                Debug.Log($"Step 1: King selected. name {piece.Name}, type {piece.Type}");
                 moves = FindCastlingMoves(piece, previousMove);
             }
             if (piece.Type == Piece.PType.Pawn)
@@ -198,10 +197,23 @@ namespace Assets.Scripts
                 else
                     destination = square - Piece.PawnMoves[i];
                 if (destination < 8 || destination > 54)
-                    flag = Move.MFlag.PromotionToQueen;
+                    flag = Move.MFlag.Promoting;
                 if (!TryGetPieceFromSquare(destination, out Piece _))
                 {
-                    if (i == 0) moves.Add(new Move(square, destination, piece, flag));
+                    if (i == 0)
+                    {
+                        if (flag == Move.MFlag.Promoting)
+                        {
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToKnight));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToBishop));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToRook));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToQueen));
+                        }
+                        else
+                        {
+                            moves.Add(new Move(square, destination, piece));
+                        }
+                    }
                     else moves.Add(new Move(square, destination, piece, Move.MFlag.PawnPush));
                 }
                 else break;
@@ -214,10 +226,22 @@ namespace Assets.Scripts
                 else
                     destination = square - Piece.PawnCaptures[i];
                 if (destination < 8 || destination > 54)
-                    flag = Move.MFlag.PromotionToQueen;
+                    flag = Move.MFlag.Promoting;
                 if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
                     if (!Utils.SameColor(piece, enemyPiece))
-                        moves.Add(new Move(square, destination, piece, flag));
+                    {
+                        if (flag == Move.MFlag.Promoting)
+                        {
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToKnight));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToBishop));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToRook));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToQueen));
+                        }
+                        else
+                        {
+                            moves.Add(new Move(square, destination, piece, flag));
+                        }
+                    }
             }
 
             // Check for en passent
