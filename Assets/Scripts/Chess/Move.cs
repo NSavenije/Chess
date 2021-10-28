@@ -8,10 +8,15 @@ namespace Assets.Scripts
 {
     public struct Move
     {
+        public string Name
+        {
+            get { return GetMoveName(this); }
+        }
         public int Start;
         public int Target;
         public Piece Piece;
         public int Flag;
+        public Piece CapturedPiece;
 
         public struct MFlag
         {
@@ -26,12 +31,20 @@ namespace Assets.Scripts
             public const int EnPassant = 8;
         }
 
-        public Move(int start, int target, Piece piece, int flag = MFlag.None)
+        public Move(int start, int target, Piece piece, int flag = MFlag.None, Piece capturedPiece = null)
         {
             Start = start;
             Target = target;
             Piece = piece;
             Flag = flag;
+            CapturedPiece = capturedPiece;
+        }
+
+        private string GetMoveName(Move move)
+        {
+            string pname = move.Piece.Name;
+            string start = Utils.GetSquareNameFromCoordinate(move.Start);
+            return start + "->" + pname;
         }
     }
 }

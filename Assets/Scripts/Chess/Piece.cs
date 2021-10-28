@@ -14,6 +14,7 @@ namespace Assets.Scripts
         public PColor Color;
         public int Square;
         public bool PMoved = false;
+        public bool PMovedTwice = false;
         public bool LongRange = false;
 
         public Piece(int code, int square, bool moved)

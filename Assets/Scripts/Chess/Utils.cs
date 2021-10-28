@@ -128,6 +128,12 @@ namespace Assets.Scripts
             return squareName;
         }
 
+        public static string GetSquareNameFromCoordinate(int squarenr)
+        {
+            (int, int) fr = SquareToFileRank(squarenr);
+            return GetSquareNameFromCoordinate(fr.Item1, fr.Item2);
+        }
+
         public static int FileRankToSquare(Vector2 pos)
         {
             return ((int)pos.y * 8 + (int)pos.x);

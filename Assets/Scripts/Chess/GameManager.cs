@@ -8,7 +8,6 @@ namespace Assets.Scripts
 {
     public class GameManager : MonoBehaviour
     {
-        public bool turnWhite;
         public bool humanPlayerWhite;
         public bool humanPlayerBlack;
         public Board Board;
@@ -17,6 +16,7 @@ namespace Assets.Scripts
         public InputState inputState;
         public Algo ComputerPlayerAlgorithm;
         public bool Paused;
+        public int perftDepth;
 
         public enum InputState
         {
@@ -30,16 +30,12 @@ namespace Assets.Scripts
         }
 
         private BoardGraphics boardGraphics;
-        private List<Move> previousMoves;
-        private Move previousMove;
 
         void Start()
         {
             Board = new Board();
             boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
             boardGraphics.CreateBoardGraphics();
-            previousMoves = new List<Move>();
-            previousMove = new Move(-1, -1, null, 0);
             Board.Squares = FenUtils.LoadFEN(FenUtils.StartingPosition, out List<Piece> pieces);
             Board.Pieces = pieces;
             boardGraphics.UpdatePieceSprites(Board.Squares);
@@ -48,11 +44,19 @@ namespace Assets.Scripts
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.Space))
+            {
                 Paused = !Paused;
+                Debug.Log("Pause Toggled");
+            }
             if (!Paused)
             {
                 if (HumanPlayerTurn())
                 {
+                    if (Input.GetKeyDown(KeyCode.Z))
+                    {
+                        Board.UndoMove();
+                        boardGraphics.UpdatePieceSprites(Board.Squares);
+                    }
                     if (Input.GetKeyDown(KeyCode.Mouse0))// && previousMove.Flag != Move.MFlag.Promoting)
                     {
                         Vector3 position = cam.ScreenToWorldPoint(Input.mousePosition);
@@ -60,12 +64,12 @@ namespace Assets.Scripts
                         bool nonEmptySquare = Board.TryGetPieceFromSquare(square, out Piece piece);
 
                         // If no square was selected before, select a square.
-                        if (inputState == InputState.None && nonEmptySquare && Utils.SameColor(turnWhite, Piece.IsWhite(piece.Code)))
+                        if (inputState == InputState.None && nonEmptySquare && Utils.SameColor(Board.turnWhite, Piece.IsWhite(piece.Code)))
                         {
                             Board.ActiveSquare = square;
                             inputState = InputState.Selected;
                             boardGraphics.SetActiveSquare(square);
-                            Board.legalMoves = Board.FindLegalMoves(piece, previousMove);
+                            Board.legalMoves = Board.FindLegalMoves(piece);
                             boardGraphics.HighlightLegalMoves(Board.legalMoves);
                         }
                         // If a second square is selected, move a piece.
@@ -73,7 +77,7 @@ namespace Assets.Scripts
                         {
                             if (Board.legalMoves.Exists(x => x.Target == square))
                             {
-                                MovePiece(Board.legalMoves.Find(x => x.Target == square));
+                                Board.DoMove(Board.legalMoves.Find(x => x.Target == square));
                                 boardGraphics.UpdatePieceSprites(Board.Squares);
                             }
                             Board.ActiveSquare = -1;
@@ -91,100 +95,38 @@ namespace Assets.Scripts
                             nextMove = FindRandomLegalMove();
                             break;
                     }
-                    MovePiece(nextMove);
+                    Board.DoMove(nextMove);
                     boardGraphics.UpdatePieceSprites(Board.Squares);
                 }
+            }
+            else
+            {
+                if (Input.GetKeyDown(KeyCode.Mouse0))
+                {
+                    Debug.Log("perft: " + Perft.DoPerft(Board, perftDepth));
+                }
+                if (Input.GetKeyDown(KeyCode.Mouse1))
+                {
+                    var results = Perft.Divide(Board, perftDepth);
+                    foreach (var result in results)
+                    {
+                        Debug.Log(result.Item1 + ": " + result.Item2);
+                    }
+                }
+
             }
         }
 
         private Move FindRandomLegalMove()
         {
             List<Move> moves = new List<Move>();
-            Piece.PColor c = Piece.PColor.White;
-            if (previousMove.Piece != null)    
-                c = Piece.GetOtherColor(previousMove.Piece);
-            foreach (Piece piece in Piece.GetPieces(c, Board.Pieces))
-                moves.AddRange(Board.FindLegalMoves(piece, previousMove));
-            return moves[Random.Range(0, moves.Count - 1)];   
+            moves = Board.FindAllLegalMoves();
+            return moves[Random.Range(0, moves.Count - 1)];
         }
 
         private bool HumanPlayerTurn()
         {
-            return turnWhite ? humanPlayerWhite : humanPlayerBlack;
+            return Board.turnWhite ? humanPlayerWhite : humanPlayerBlack;
         }
-        
-        private void MovePiece(Move move)
-        {
-            // House Keeping.
-            turnWhite = !turnWhite;
-            previousMoves.Add(move);
-            previousMove = move;
-            
-            // Remove Captured Piece.
-            if (Board.TryGetPieceFromSquare(move.Target, out Piece targetPiece))
-                Board.Pieces.Remove(targetPiece);
-
-            if (move.Flag == Move.MFlag.EnPassant)
-            {
-                Move pushMove = previousMoves[previousMoves.Count - 2];
-                Board.Pieces.Remove(pushMove.Piece);
-                Board.Squares[pushMove.Target] = null;
-            }
-
-            if (move.Flag == Move.MFlag.PromotionToRook)
-            {
-                move.Piece.Type = Piece.PType.Rook;
-                move.Piece.Code |= 1;
-                move.Piece.LongRange = true;
-            }
-
-            if (move.Flag == Move.MFlag.PromotionToKnight)
-            {
-                move.Piece.Type = Piece.PType.Knight;
-                move.Piece.Code |= 2;
-                move.Piece.LongRange = false;
-            }
-
-            if (move.Flag == Move.MFlag.PromotionToBishop)
-            {
-                move.Piece.Type = Piece.PType.Rook;
-                move.Piece.Code |= 3;
-                move.Piece.LongRange = true;
-            }
-
-            if (move.Flag == Move.MFlag.PromotionToQueen)
-            {
-                move.Piece.Type = Piece.PType.Queen;
-                move.Piece.Code |= 4;
-                move.Piece.LongRange = true;
-            }
-
-            if (move.Flag == Move.MFlag.Castling)
-            {
-                List<Piece> rooks = Piece.GetPieces(Piece.PType.Rook, move.Piece.Color, Board.Pieces);
-                bool kingSide = move.Start < move.Target;
-                Piece rook = kingSide ? rooks.Find(r => r.Square > move.Piece.Square) : rooks.Find(r => r.Square < move.Piece.Square);
-                int target = kingSide ? move.Target - 1 : move.Target + 1;
-
-                // Update the Board
-                Board.Squares[rook.Square] = null;
-                Board.Squares[target] = rook;
-
-                // Move and Update the Rook;
-                rook.Code |= Piece.Moved;
-                rook.PMoved = true;
-                rook.Square = target;
-            }
-
-            // Move and Update the Piece.
-            move.Piece.Code |= Piece.Moved;
-            move.Piece.PMoved = true;
-            move.Piece.Square = move.Target;
-
-            // Update the Board.
-            Board.Squares[move.Start] = null;
-            Board.Squares[move.Target] = move.Piece;
-        }
-        
     }
 }

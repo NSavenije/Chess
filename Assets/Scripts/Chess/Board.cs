@@ -19,7 +19,9 @@ namespace Assets.Scripts
         public List<Piece> Pieces;
         public List<Move> legalMoves;
         public int ActiveSquare;
-
+        public bool turnWhite;
+        public Stack<Move> previousMoves;
+        private Move previousMove;
         private List<int> whiteControlledSquares;
         private List<int> blackControlledSquares;
 
@@ -28,9 +30,25 @@ namespace Assets.Scripts
             ActiveSquare = -1;
             legalMoves = new List<Move>();
             Pieces = new List<Piece>();
+            previousMoves = new Stack<Move>();
+            previousMove = new Move(-1, -1, null, 0);
+            turnWhite = true;
         }
+
+        // Generate all moves
+        public List<Move> FindAllLegalMoves(bool checkForChecks = true)
+        {
+            List<Move> moves = new List<Move>();
+            Piece.PColor c = Piece.PColor.White;
+            if (previousMove.Piece != null)
+                c = Piece.GetOtherColor(previousMove.Piece);
+            foreach (Piece p in Piece.GetPieces(c, Pieces))
+                moves.AddRange(FindLegalMoves(p));
+            return moves;
+        }
+
         // Generate moves
-        public List<Move> FindLegalMoves(Piece piece, Move previousMove, bool checkForChecks = true)
+        public List<Move> FindLegalMoves(Piece piece, bool checkForChecks = true)
         {
             List<Move> moves = new List<Move>();
             int square = piece.Square;
@@ -54,7 +72,8 @@ namespace Assets.Scripts
                         int currentSquare = square;
                         while (SquareExists(currentSquare, dirs[i]) && !Blocked(piece, target))
                         {
-                            moves.Add(new Move(square, target, piece));
+                            TryGetPieceFromSquare(target, out Piece enemyPiece);
+                            moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
                             if (TryGetPieceFromSquare(target, out Piece _))
                                 break;
                             currentSquare = target;
@@ -64,7 +83,10 @@ namespace Assets.Scripts
                     else
                     {
                         if (SquareExists(square, dirs[i]) && !Blocked(piece, target))
-                            moves.Add(new Move(square, target, piece));
+                        {
+                            TryGetPieceFromSquare(target, out Piece enemyPiece);
+                            moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
+                        }
                     }
                 }
             }
@@ -73,14 +95,190 @@ namespace Assets.Scripts
                 foreach (Move move in moves.ToList())
                 {
                     // If the opponent can capture my king after I do this move, (I was in check or a piece was pinned), dont.
-                    if (WouldResultInKingCapture(square, move, previousMove))
+                    if (WouldResultInKingCapture(square, move))
                         moves.Remove(move);
                 }
             }
             return moves;
         }
 
-        private bool WouldResultInKingCapture(int square, Move move, Move previousMove)
+        public void DoMove(Move move)
+        {
+            // House Keeping.
+            turnWhite = !turnWhite;
+            if (previousMoves.Count < 1)
+            {
+                //Debug.Log($"previousMove fake and move 1 nr {previousMoves.Count}");
+            }
+            else
+            {
+                //Debug.Log($"previousMove {previousMoves[previousMoves.Count - 1].Piece.Name} nr {previousMoves.Count}");
+            }
+            
+            //Debug.Log($"{move.Piece.Name} moved to {Utils.GetSquareNameFromCoordinate(move.Target)}, move nr: {previousMoves.Count}");
+
+            // Remove Captured Piece.
+            if (TryGetPieceFromSquare(move.Target, out Piece targetPiece))
+                Pieces.Remove(targetPiece);
+
+            if (move.Flag == Move.MFlag.EnPassant)
+            {
+                Move pushMove = previousMove;
+                Pieces.Remove(pushMove.Piece);
+                Squares[pushMove.Target] = null;
+            }
+
+            if (move.Flag == Move.MFlag.PromotionToRook)
+            {
+                move.Piece.Type = Piece.PType.Rook;
+                move.Piece.Code |= 1;
+                move.Piece.LongRange = true;
+            }
+
+            if (move.Flag == Move.MFlag.PromotionToKnight)
+            {
+                move.Piece.Type = Piece.PType.Knight;
+                move.Piece.Code |= 2;
+                move.Piece.LongRange = false;
+            }
+
+            if (move.Flag == Move.MFlag.PromotionToBishop)
+            {
+                move.Piece.Type = Piece.PType.Rook;
+                move.Piece.Code |= 3;
+                move.Piece.LongRange = true;
+            }
+
+            if (move.Flag == Move.MFlag.PromotionToQueen)
+            {
+                move.Piece.Type = Piece.PType.Queen;
+                move.Piece.Code |= 4;
+                move.Piece.LongRange = true;
+            }
+
+            if (move.Flag == Move.MFlag.Castling)
+            {
+                List<Piece> rooks = Piece.GetPieces(Piece.PType.Rook, move.Piece.Color, Pieces);
+                bool kingSide = move.Start < move.Target;
+                Piece rook = kingSide ? rooks.Find(r => r.Square > move.Piece.Square) : rooks.Find(r => r.Square < move.Piece.Square);
+                int target = kingSide ? move.Target - 1 : move.Target + 1;
+
+                // Update the Board
+                Squares[rook.Square] = null;
+                Squares[target] = rook;
+
+                // Move and Update the Rook;
+                rook.Code |= Piece.Moved;
+                rook.PMoved = true;
+                rook.Square = target;
+            }
+
+            // Move and Update the Piece.
+            move.Piece.Code |= Piece.Moved;
+            if (move.Piece.PMoved)
+                move.Piece.PMovedTwice = true;
+            move.Piece.PMoved = true;
+            move.Piece.Square = move.Target;
+
+            // Update the Board.
+            Squares[move.Start] = null;
+            Squares[move.Target] = move.Piece;
+
+            // Update the Stack.
+            previousMoves.Push(move);
+            previousMove = move;
+        }
+
+        public void UndoMove()
+        {
+            // House Keeping.
+            turnWhite = !turnWhite;
+            Move move = previousMoves.Pop();
+            //Debug.Log("previousMoves = " + previousMoves.Count);
+            //previousMoves.Remove(previousMove);
+            //Debug.Log("NOW previousMoves = " + previousMoves.Count);
+
+            if (move.Flag == Move.MFlag.PromotionToRook)
+            {
+                move.Piece.Type = Piece.PType.Pawn;
+                int mask = 1 << 1;
+                move.Piece.Code &= ~mask;
+                move.Piece.Code |= 1;
+                move.Piece.LongRange = false;
+            }
+
+            if (move.Flag == Move.MFlag.PromotionToKnight)
+            {
+                move.Piece.Type = Piece.PType.Pawn;
+                int mask = 1 << 1;
+                move.Piece.Code &= ~mask;
+            }
+
+            if (move.Flag == Move.MFlag.PromotionToBishop)
+            {
+                move.Piece.Type = Piece.PType.Pawn;
+                int mask = 1 << 2;
+                move.Piece.Code &= ~mask;
+                move.Piece.Code |= 1;
+                move.Piece.LongRange = false;
+            }
+
+            if (move.Flag == Move.MFlag.PromotionToQueen)
+            {
+                move.Piece.Type = Piece.PType.Pawn;
+                int mask = 1 << 2;
+                move.Piece.Code &= ~mask;
+                move.Piece.LongRange = false;
+            }
+
+            // Uncastle by finding the closest rook and putting it back.
+            if (move.Flag == Move.MFlag.Castling)
+            {
+                List<Piece> rooks = Piece.GetPieces(Piece.PType.Rook, move.Piece.Color, Pieces);
+                bool kingSide = move.Start < move.Target;
+                Piece rook = kingSide ? rooks.Find(r => r.Square == move.Piece.Square - 1) : rooks.Find(r => r.Square == move.Piece.Square + 1);
+                int target = kingSide ? 7 : 0;
+
+                // Update the Board
+                Squares[rook.Square] = null;
+                Squares[target] = rook;
+
+                // Move and Update the Rook;
+                int mask = 1 << 5;
+                rook.Code &= ~mask;
+                rook.PMoved = false;
+                rook.Square = target;
+                move.Piece.Code &= ~mask;
+                move.Piece.PMoved = false;
+            }
+
+            if (move.Flag == Move.MFlag.PawnPush)
+            {
+                int mask = 1 << 5;
+                move.Piece.Code &= ~mask;
+                move.Piece.PMoved = false;
+            }
+
+            // Move and Update the Piece.
+            // move.Piece.Code |= Piece.Moved;
+            if (!move.Piece.PMovedTwice)
+                move.Piece.PMoved = false; ;
+            move.Piece.Square = move.Start;
+
+            // Update the Board.
+            Squares[move.Start] = move.Piece;
+            Squares[move.Target] = null;
+
+            // Replace Captured Piece.
+            if (move.CapturedPiece != null)
+            {
+                Piece p = move.CapturedPiece;
+                Squares[p.Square] = p;
+                Pieces.Add(p);
+            }
+        }
+
+        private bool WouldResultInKingCapture(int square, Move move)
         {
             if (!TryGetPieceFromSquare(square, out Piece piece))
                 return false;
@@ -89,16 +287,21 @@ namespace Assets.Scripts
             Piece pieceAtTarget = Squares[move.Target];
             piece.Square = move.Target;
             Squares[square] = null;
-            Squares[move.Target] = piece;            
-            
+            Squares[move.Target] = piece;
+
             // Check if my King can now be captured by any of the opposing pieces.
-            int kingSquare = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces)[0].Square;
+            List<Piece> kings = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces);
+            if (kings.Count == 0)
+            {
+                return true;
+            }
+            int kingSquare = kings[0].Square;
             // Remove captured piece from this list
             foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(piece), Pieces))
             {
                 if (p.Square == move.Target)
                     continue;
-                if (FindLegalMoves(p, previousMove, false).Exists(x => x.Target == kingSquare))
+                if (FindLegalMoves(p, false).Exists(x => x.Target == kingSquare))
                 {
                     //Reset the board to the orignal state.
                     piece.Square = square;
@@ -162,7 +365,7 @@ namespace Assets.Scripts
                             if (allEmpty)
                             {
                                 foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
-                                    if (!FindLegalMoves(p, previousMove, false).Exists(x => x.Target == king.Square || x.Target == king.Square + 1 || x.Target == king.Square + 2))
+                                    if (!FindLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square + 1 || x.Target == king.Square + 2))
                                     {
                                         moves.Add(new Move(king.Square, king.Square + 2, king, Move.MFlag.Castling));
                                     }
@@ -176,7 +379,7 @@ namespace Assets.Scripts
                                     allEmpty = false;
                             if (allEmpty)
                                 foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
-                                    if (!FindLegalMoves(p, previousMove, false).Exists(x => x.Target == king.Square || x.Target == king.Square - 1 || x.Target == king.Square - 2))
+                                    if (!FindLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square - 1 || x.Target == king.Square - 2))
                                         moves.Add(new Move(king.Square, king.Square - 2, king, Move.MFlag.Castling));
                         }
                     }
@@ -198,6 +401,14 @@ namespace Assets.Scripts
                     destination = square - Piece.PawnMoves[i];
                 if (destination < 8 || destination > 54)
                     flag = Move.MFlag.Promoting;
+                if (!SquareExists(destination))
+                {
+                    Debug.Log($"sq: {destination}, move or push: {i}, piece: {piece.Name}");
+                    foreach(Move m in previousMoves)
+                    {
+                        //Debug.Log($"start: {m.Start}, end: {m.Target}, name: {m.Piece.Name}");
+                    }
+                }
                 if (!TryGetPieceFromSquare(destination, out Piece _))
                 {
                     if (i == 0)
@@ -232,14 +443,14 @@ namespace Assets.Scripts
                     {
                         if (flag == Move.MFlag.Promoting)
                         {
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToKnight));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToBishop));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToRook));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToQueen));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToKnight, enemyPiece));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToBishop, enemyPiece));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToRook  , enemyPiece));
+                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToQueen , enemyPiece));
                         }
                         else
                         {
-                            moves.Add(new Move(square, destination, piece, flag));
+                            moves.Add(new Move(square, destination, piece, flag, enemyPiece));
                         }
                     }
             }
@@ -249,9 +460,9 @@ namespace Assets.Scripts
             {
                 int perspective = piece.Color == Piece.PColor.White ? 1 : -1;
                 if (previousMove.Target == square - 1)
-                    moves.Add(new Move(square, square + (7 * perspective), piece, Move.MFlag.EnPassant));
+                    moves.Add(new Move(square, square + (7 * perspective), piece, Move.MFlag.EnPassant, previousMove.Piece));
                 else if (previousMove.Target == square + 1)
-                    moves.Add(new Move(square, square + (9 * perspective), piece, Move.MFlag.EnPassant));
+                    moves.Add(new Move(square, square + (9 * perspective), piece, Move.MFlag.EnPassant, previousMove.Piece));
             }
             return moves;
         }
