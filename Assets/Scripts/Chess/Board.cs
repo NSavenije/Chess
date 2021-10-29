@@ -169,15 +169,13 @@ namespace Assets.Scripts
 
                 // Move and Update the Rook;
                 rook.Code |= Piece.Moved;
-                rook.PMoved = true;
+                rook.PMoved++;
                 rook.Square = target;
             }
 
             // Move and Update the Piece.
             move.Piece.Code |= Piece.Moved;
-            if (move.Piece.PMoved)
-                move.Piece.PMovedTwice = true;
-            move.Piece.PMoved = true;
+            move.Piece.PMoved++;
             move.Piece.Square = move.Target;
 
             // Update the Board.
@@ -246,23 +244,20 @@ namespace Assets.Scripts
                 // Move and Update the Rook;
                 int mask = 1 << 5;
                 rook.Code &= ~mask;
-                rook.PMoved = false;
+                rook.PMoved = 0;
                 rook.Square = target;
                 move.Piece.Code &= ~mask;
-                move.Piece.PMoved = false;
             }
 
             if (move.Flag == Move.MFlag.PawnPush)
             {
                 int mask = 1 << 5;
                 move.Piece.Code &= ~mask;
-                move.Piece.PMoved = false;
             }
 
             // Move and Update the Piece.
             // move.Piece.Code |= Piece.Moved;
-            if (!move.Piece.PMovedTwice)
-                move.Piece.PMoved = false; ;
+            move.Piece.PMoved--;
             move.Piece.Square = move.Start;
 
             // Update the Board.
@@ -316,12 +311,14 @@ namespace Assets.Scripts
             return false;
         }
 
-        private bool SquareExists(int square, int direction)
+        private bool SquareExists(int square, int direction, bool reverse = false)
         {
             if (square + direction < 0 || square + direction > 63)
                 return false;
             (int, int) fr = Utils.SquareToFileRank(square);
             (int, int) dir = Utils.GetFileRankDirFromSquareDir(direction);
+            if (reverse)
+                dir = (dir.Item1 * -1, dir.Item1 * -1);
             if (fr.Item1 + dir.Item1 < 0 || fr.Item1 + dir.Item1 > 7)
                 return false;
             if (fr.Item2 + dir.Item2 < 0 || fr.Item2 + dir.Item2 > 7)
@@ -345,13 +342,13 @@ namespace Assets.Scripts
         private List<Move> FindCastlingMoves(Piece king, Move previousMove)
         {
             List<Move> moves = new List<Move>();
-            if (!king.PMoved)
+            if (king.PMoved == 0)
             {
                 var rooks = Piece.GetPieces(Piece.PType.Rook, king.Color, Pieces);
                 foreach (var rook in rooks)
                 {
                     // This rook and king havent moved, check if the squares between them are open
-                    if (!rook.PMoved)
+                    if (rook.PMoved == 0)
                     {
                         if (rook.Square > king.Square) // King Side
                         {
@@ -393,7 +390,7 @@ namespace Assets.Scripts
             List<Move> moves = new List<Move>();
             for (int i = 0; i < Piece.PawnMoves.Count; i++)
             {
-                if (piece.PMoved && i == 1) break;
+                if (piece.PMoved > 0 && i == 1) break;
                 int destination; int flag = 0;
                 if (piece.Color == Piece.PColor.White)
                     destination = square + Piece.PawnMoves[i];
@@ -432,10 +429,12 @@ namespace Assets.Scripts
             for (int i = 0; i < Piece.PawnCaptures.Count; i++)
             {
                 int destination; int flag = Move.MFlag.None;
-                if (piece.Color == Piece.PColor.White)
+                if (piece.Color == Piece.PColor.White && SquareExists(square, Piece.PawnCaptures[i], false))
                     destination = square + Piece.PawnCaptures[i];
-                else
+                else if ((piece.Color == Piece.PColor.Black && SquareExists(square, Piece.PawnCaptures[i], true)))
                     destination = square - Piece.PawnCaptures[i];
+                else
+                    continue;
                 if (destination < 8 || destination > 54)
                     flag = Move.MFlag.Promoting;
                 if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
@@ -456,7 +455,8 @@ namespace Assets.Scripts
             }
 
             // Check for en passent
-            if (previousMove.Flag == Move.MFlag.PawnPush)
+            bool sameRank = Utils.SquareToFileRank(square).Item2 == Utils.SquareToFileRank(previousMove.Target).Item2;
+            if (previousMove.Flag == Move.MFlag.PawnPush && sameRank)
             {
                 int perspective = piece.Color == Piece.PColor.White ? 1 : -1;
                 if (previousMove.Target == square - 1)

@@ -28,7 +28,7 @@ namespace Assets.Scripts
                     }
                     int pieceCode = Utils.GetPieceFromChar(c);
                     int square = (7 - rank) * 8 + file;
-                    Piece piece = new Piece(pieceCode, square, false);
+                    Piece piece = new Piece(pieceCode, square, 0);
                     pieces.Add(piece);
                     board[square] = piece;
                 }

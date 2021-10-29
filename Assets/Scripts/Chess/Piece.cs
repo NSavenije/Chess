@@ -13,11 +13,10 @@ namespace Assets.Scripts
         public PType Type;
         public PColor Color;
         public int Square;
-        public bool PMoved = false;
-        public bool PMovedTwice = false;
+        public int PMoved = 0;
         public bool LongRange = false;
 
-        public Piece(int code, int square, bool moved)
+        public Piece(int code, int square, int moved)
         {
             Code = code;
             Type = GetPieceType(code);
