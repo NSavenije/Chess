@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Assets.Scripts
 {
@@ -18,19 +19,23 @@ namespace Assets.Scripts
             List<Piece> pieces = new List<Piece>();
             for (int rank = 7; rank >= 0; rank--)
             {
-                for (int file = 0; file < 8; file++)
+                int f = 0;
+                for (int file = 0; file < ranks[rank].Length; file++)
                 {
-                    char c = ranks[rank][file];
+                    string r = ranks[rank];
+                    Debug.Log($"{r}: {file}");
+                    char c = r[file];
                     if (char.IsNumber(c))
                     {
-                        file += (int)char.GetNumericValue(c);
+                        f += (int)char.GetNumericValue(c);
                         continue;
                     }
                     int pieceCode = Utils.GetPieceFromChar(c);
-                    int square = (7 - rank) * 8 + file;
+                    int square = (7 - rank) * 8 + f;
 
                     Piece piece = new Piece(pieceCode, square, 0);
                     pieces.Add(piece);
+                    f++;
                 }
             }
             //Active colour which is either 'w' or 'b'.
