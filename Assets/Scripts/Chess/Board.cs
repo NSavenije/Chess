@@ -36,57 +36,48 @@ namespace Assets.Scripts
         }
 
         // Generate all moves
-        public List<Move> FindAllLegalMoves(bool checkForChecks = true)
+        public List<Move> GetAllLegalMoves(bool pseudoLegal = true)
         {
             List<Move> moves = new List<Move>();
             Piece.PColor c = Piece.PColor.White;
             if (previousMove.Piece != null)
                 c = Piece.GetOtherColor(previousMove.Piece);
             foreach (Piece p in Piece.GetPieces(c, Pieces))
-                moves.AddRange(FindLegalMoves(p));
+                moves.AddRange(GetLegalMoves(p));
             return moves;
         }
 
         // Generate moves
-        public List<Move> FindLegalMoves(Piece piece, bool checkForChecks = true)
+        public List<Move> GetLegalMoves(Piece piece, bool checkForChecks = true)
         {
             List<Move> moves = new List<Move>();
             int square = piece.Square;
-            if (piece.Type == Piece.PType.King)
+            moves = FindCastlingMoves(piece, previousMove);
+            moves.AddRange(FindLegalPawnMoves(piece, previousMove));
+            var moveSets = Piece.GetMovesets(piece.Type);
+            List<int> dirs = moveSets.SelectMany(x => x).ToList();
+            for (int i = 0; i < dirs.Count; i++)
             {
-                moves = FindCastlingMoves(piece, previousMove);
-            }
-            if (piece.Type == Piece.PType.Pawn)
-            {
-                moves = FindLegalPawnMoves(square, piece, previousMove);
-            }
-            else
-            {
-                var moveSets = Piece.GetMovesets(piece.Type);
-                List<int> dirs = moveSets.SelectMany(x => x).ToList();
-                for (int i = 0; i < dirs.Count; i++)
+                int target = square + dirs[i];
+                if (piece.LongRange)
                 {
-                    int target = square + dirs[i];
-                    if (piece.LongRange)
+                    int currentSquare = square;
+                    while (SquareExists(currentSquare, dirs[i]) && !Blocked(piece, target))
                     {
-                        int currentSquare = square;
-                        while (SquareExists(currentSquare, dirs[i]) && !Blocked(piece, target))
-                        {
-                            TryGetPieceFromSquare(target, out Piece enemyPiece);
-                            moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
-                            if (TryGetPieceFromSquare(target, out Piece _))
-                                break;
-                            currentSquare = target;
-                            target += dirs[i];
-                        }
+                        TryGetPieceFromSquare(target, out Piece enemyPiece);
+                        moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
+                        if (TryGetPieceFromSquare(target, out Piece _))
+                            break;
+                        currentSquare = target;
+                        target += dirs[i];
                     }
-                    else
+                }
+                else if (piece.Type != Piece.PType.Pawn)
+                {
+                    if (SquareExists(square, dirs[i]) && !Blocked(piece, target))
                     {
-                        if (SquareExists(square, dirs[i]) && !Blocked(piece, target))
-                        {
-                            TryGetPieceFromSquare(target, out Piece enemyPiece);
-                            moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
-                        }
+                        TryGetPieceFromSquare(target, out Piece enemyPiece);
+                        moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
                     }
                 }
             }
@@ -106,16 +97,6 @@ namespace Assets.Scripts
         {
             // House Keeping.
             turnWhite = !turnWhite;
-            if (previousMoves.Count < 1)
-            {
-                //Debug.Log($"previousMove fake and move 1 nr {previousMoves.Count}");
-            }
-            else
-            {
-                //Debug.Log($"previousMove {previousMoves[previousMoves.Count - 1].Piece.Name} nr {previousMoves.Count}");
-            }
-            
-            //Debug.Log($"{move.Piece.Name} moved to {Utils.GetSquareNameFromCoordinate(move.Target)}, move nr: {previousMoves.Count}");
 
             // Remove Captured Piece.
             if (TryGetPieceFromSquare(move.Target, out Piece targetPiece))
@@ -190,11 +171,10 @@ namespace Assets.Scripts
         public void UndoMove()
         {
             // House Keeping.
+            if (previousMoves.Count == 0)
+                return;
             turnWhite = !turnWhite;
             Move move = previousMoves.Pop();
-            //Debug.Log("previousMoves = " + previousMoves.Count);
-            //previousMoves.Remove(previousMove);
-            //Debug.Log("NOW previousMoves = " + previousMoves.Count);
 
             if (move.Flag == Move.MFlag.PromotionToRook)
             {
@@ -296,7 +276,7 @@ namespace Assets.Scripts
             {
                 if (p.Square == move.Target)
                     continue;
-                if (FindLegalMoves(p, false).Exists(x => x.Target == kingSquare))
+                if (GetLegalMoves(p, false).Exists(x => x.Target == kingSquare))
                 {
                     //Reset the board to the orignal state.
                     piece.Square = square;
@@ -342,6 +322,9 @@ namespace Assets.Scripts
         private List<Move> FindCastlingMoves(Piece king, Move previousMove)
         {
             List<Move> moves = new List<Move>();
+            if (king.Type != Piece.PType.King)
+                return moves;
+            
             if (king.PMoved == 0)
             {
                 var rooks = Piece.GetPieces(Piece.PType.Rook, king.Color, Pieces);
@@ -362,7 +345,7 @@ namespace Assets.Scripts
                             if (allEmpty)
                             {
                                 foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
-                                    if (!FindLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square + 1 || x.Target == king.Square + 2))
+                                    if (!GetLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square + 1 || x.Target == king.Square + 2))
                                     {
                                         moves.Add(new Move(king.Square, king.Square + 2, king, Move.MFlag.Castling));
                                     }
@@ -376,8 +359,10 @@ namespace Assets.Scripts
                                     allEmpty = false;
                             if (allEmpty)
                                 foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
-                                    if (!FindLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square - 1 || x.Target == king.Square - 2))
+                                    if (!GetLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square - 1 || x.Target == king.Square - 2))
+                                    {
                                         moves.Add(new Move(king.Square, king.Square - 2, king, Move.MFlag.Castling));
+                                    }
                         }
                     }
                 }
@@ -385,84 +370,92 @@ namespace Assets.Scripts
             return moves;
         }
 
-        private List<Move> FindLegalPawnMoves(int square, Piece piece, Move previousMove)
+        /// <summary>
+        /// Generates moves for promotions pushes captures for pawns.
+        /// </summary>
+        /// <param name="piece">Any piece</param>
+        /// <param name="previousMove">Previous move</param>
+        /// <returns></returns>
+        private List<Move> FindLegalPawnMoves(Piece piece, Move previousMove)
         {
             List<Move> moves = new List<Move>();
+            if (piece.Type != Piece.PType.Pawn)
+                return moves;
+
+            int perspective = piece.Color == Piece.PColor.White ? 1 : -1;
+            
             for (int i = 0; i < Piece.PawnMoves.Count; i++)
             {
                 if (piece.PMoved > 0 && i == 1) break;
-                int destination; int flag = 0;
-                if (piece.Color == Piece.PColor.White)
-                    destination = square + Piece.PawnMoves[i];
-                else
-                    destination = square - Piece.PawnMoves[i];
+                int flag = 0;
+                int destination = piece.Square + (perspective * Piece.PawnMoves[i]);
                 if (destination < 8 || destination > 54)
                     flag = Move.MFlag.Promoting;
                 if (!SquareExists(destination))
                 {
-                    Debug.Log($"sq: {destination}, move or push: {i}, piece: {piece.Name}");
-                    foreach(Move m in previousMoves)
-                    {
-                        //Debug.Log($"start: {m.Start}, end: {m.Target}, name: {m.Piece.Name}");
-                    }
+                    Debug.Log($"sq: {piece.Square} dest: {destination}, move or push: {i}, piece: {Piece.ToString(piece)}");
+                    //GameObject.Find("Board").GetComponent<BoardGraphics>().UpdatePieceSprites(Squares);
+
+                    //foreach (Move m in previousMoves)
+                    //{
+                    //    Debug.Log($"start: {m.Start}, end: {m.Target}, name: {Piece.ToString(m.Piece)}");
+                    //}
                 }
                 if (!TryGetPieceFromSquare(destination, out Piece _))
                 {
-                    if (i == 0)
+                    if (flag == Move.MFlag.Promoting)
                     {
-                        if (flag == Move.MFlag.Promoting)
-                        {
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToKnight));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToBishop));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToRook));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToQueen));
-                        }
-                        else
-                        {
-                            moves.Add(new Move(square, destination, piece));
-                        }
+                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToKnight));
+                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToBishop));
+                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToRook));
+                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToQueen));
                     }
-                    else moves.Add(new Move(square, destination, piece, Move.MFlag.PawnPush));
+                    moves.Add(new Move(piece.Square, destination, piece, i));
                 }
-                else break;
+                else break; //If it is blocked, there is no use in checking if the pawn can move up further.
             }
             for (int i = 0; i < Piece.PawnCaptures.Count; i++)
             {
                 int destination; int flag = Move.MFlag.None;
-                if (piece.Color == Piece.PColor.White && SquareExists(square, Piece.PawnCaptures[i], false))
-                    destination = square + Piece.PawnCaptures[i];
-                else if ((piece.Color == Piece.PColor.Black && SquareExists(square, Piece.PawnCaptures[i], true)))
-                    destination = square - Piece.PawnCaptures[i];
+                if (piece.Color == Piece.PColor.White && SquareExists(piece.Square, Piece.PawnCaptures[i], false))
+                    destination = piece.Square + Piece.PawnCaptures[i];
+                else if ((piece.Color == Piece.PColor.Black && SquareExists(piece.Square, Piece.PawnCaptures[i], true)))
+                    destination = piece.Square - Piece.PawnCaptures[i];
                 else
                     continue;
                 if (destination < 8 || destination > 54)
                     flag = Move.MFlag.Promoting;
                 if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
+                {
                     if (!Utils.SameColor(piece, enemyPiece))
                     {
                         if (flag == Move.MFlag.Promoting)
                         {
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToKnight, enemyPiece));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToBishop, enemyPiece));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToRook  , enemyPiece));
-                            moves.Add(new Move(square, destination, piece, Move.MFlag.PromotionToQueen , enemyPiece));
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToKnight, enemyPiece));
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToBishop, enemyPiece));
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToRook, enemyPiece));
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToQueen, enemyPiece));
                         }
                         else
                         {
-                            moves.Add(new Move(square, destination, piece, flag, enemyPiece));
+                            moves.Add(new Move(piece.Square, destination, piece, flag, enemyPiece));
                         }
                     }
+                }
             }
 
             // Check for en passent
-            bool sameRank = Utils.SquareToFileRank(square).Item2 == Utils.SquareToFileRank(previousMove.Target).Item2;
+            bool sameRank = Utils.SquareToFileRank(piece.Square).Item2 == Utils.SquareToFileRank(previousMove.Target).Item2;
             if (previousMove.Flag == Move.MFlag.PawnPush && sameRank)
             {
-                int perspective = piece.Color == Piece.PColor.White ? 1 : -1;
-                if (previousMove.Target == square - 1)
-                    moves.Add(new Move(square, square + (7 * perspective), piece, Move.MFlag.EnPassant, previousMove.Piece));
-                else if (previousMove.Target == square + 1)
-                    moves.Add(new Move(square, square + (9 * perspective), piece, Move.MFlag.EnPassant, previousMove.Piece));
+                if (previousMove.Target == piece.Square - 1)
+                {
+                    moves.Add(new Move(piece.Square, piece.Square + (7 * perspective), piece, Move.MFlag.EnPassant, previousMove.Piece));
+                }
+                else if (previousMove.Target == piece.Square + 1)
+                {
+                    moves.Add(new Move(piece.Square, piece.Square + (9 * perspective), piece, Move.MFlag.EnPassant, previousMove.Piece));
+                }
             }
             return moves;
         }

@@ -149,7 +149,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 220858734}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fabd60292b07cce4a85a374346227f39, type: 3}
+  m_Script: {fileID: 11500000, guid: 472b1a5b2493272439411bcd2c6d0748, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   lightSquareColor: {r: 0.94117653, g: 0.854902, b: 0.70980394, a: 0}
@@ -305,13 +305,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 1159028066}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 17a4e12323864344f918a4d6251c57aa, type: 3}
+  m_Script: {fileID: 11500000, guid: f538c720ba71e8f4e85a983380e14ffa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  turnWhite: 1
+  humanPlayerWhite: 0
+  humanPlayerBlack: 0
   BoardGraphics: {fileID: 220858734}
   cam: {fileID: 519420031}
   inputState: 0
+  ComputerPlayerAlgorithm: 1
+  Paused: 1
 --- !u!4 &1159028068
 Transform:
   m_ObjectHideFlags: 0

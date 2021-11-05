@@ -215,5 +215,10 @@ namespace Assets.Scripts
                 return true;
             return false;
         }
+
+        public static string ToString(Piece p)
+        {
+            return $"{GetPieceName(p)}: Type: {p.Type.ToString()}, Color: {p.Color.ToString()}, #moves: {p.PMoved}";
+        }
     }
 }

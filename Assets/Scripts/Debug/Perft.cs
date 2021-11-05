@@ -8,15 +8,18 @@ using UnityEngine;
 namespace Assets.Scripts
 {
     static class Perft
-    {
+    {    
         public static int DoPerft(Board b, int depth)
         {
             int nodes = 0;
             if (depth == 0)
                 return nodes;
-            List<Move> ms = b.FindAllLegalMoves();
+            List<Move> ms = b.GetAllLegalMoves();
             if (depth == 1)
+            {
                 nodes += ms.Count;
+                return nodes;
+            }
             foreach(Move m in ms)
             {
                 b.DoMove(m);
@@ -26,10 +29,40 @@ namespace Assets.Scripts
             return nodes;
         }
 
+        public static List<Board> DoPerftBoards(Board b, int depth)
+        {
+            List<Board> nodes = new List<Board>();
+            if (depth == 0)
+            {
+                Board update = new Board();
+                //update.DoMove(b.previousMoves.Peek());
+                for(int i = 0; i < 64; i++)
+                {
+                    update.Squares[i] = b.Squares[i];
+                }
+                nodes.Add(update);
+                return nodes;
+            }
+                //return nodes;
+            List<Move> ms = b.GetAllLegalMoves();
+            if (depth == 1)
+            {
+                //nodes += ms.Count;
+                //return nodes;
+            }
+            foreach (Move m in ms)
+            {
+                b.DoMove(m);
+                nodes.AddRange(DoPerftBoards(b, depth - 1));
+                b.UndoMove();
+            }
+            return nodes;
+        }
+
         public static List<(string, int)> Divide(Board b, int perftDepth, int moveNameDepth = 1)
         {
             List<(string, int)> res = new List<(string, int)>();
-            List<Move> ms = b.FindAllLegalMoves();
+            List<Move> ms = b.GetAllLegalMoves();
             foreach(Move m in ms)
             {
                 b.DoMove(m);

@@ -30,6 +30,8 @@ namespace Assets.Scripts
         }
 
         private BoardGraphics boardGraphics;
+        private List<Board> results;
+        private int resCounter;
 
         void Start()
         {
@@ -69,7 +71,7 @@ namespace Assets.Scripts
                             Board.ActiveSquare = square;
                             inputState = InputState.Selected;
                             boardGraphics.SetActiveSquare(square);
-                            Board.legalMoves = Board.FindLegalMoves(piece);
+                            Board.legalMoves = Board.GetLegalMoves(piece);
                             boardGraphics.HighlightLegalMoves(Board.legalMoves);
                         }
                         // If a second square is selected, move a piece.
@@ -104,6 +106,7 @@ namespace Assets.Scripts
                 if (Input.GetKeyDown(KeyCode.Mouse0))
                 {
                     Debug.Log("perft: " + Perft.DoPerft(Board, perftDepth));
+                    boardGraphics.UpdatePieceSprites(Board.Squares);
                 }
                 if (Input.GetKeyDown(KeyCode.Mouse1))
                 {
@@ -112,6 +115,19 @@ namespace Assets.Scripts
                     {
                         Debug.Log(result.Item1 + ": " + result.Item2);
                     }
+                    boardGraphics.UpdatePieceSprites(Board.Squares);
+                }
+                if (Input.GetKeyDown(KeyCode.D))
+                {
+                    results = Perft.DoPerftBoards(Board, perftDepth);
+                    resCounter = 0;
+                    Debug.Log("DONE!");
+                }
+                if (Input.GetKeyDown(KeyCode.RightArrow) && resCounter < results.Count)
+                {
+                    Debug.Log("Next");
+                    Board.Squares = results[resCounter++].Squares;
+                    boardGraphics.UpdatePieceSprites(Board.Squares);
                 }
 
             }
@@ -120,7 +136,7 @@ namespace Assets.Scripts
         private Move FindRandomLegalMove()
         {
             List<Move> moves = new List<Move>();
-            moves = Board.FindAllLegalMoves();
+            moves = Board.GetAllLegalMoves();
             return moves[Random.Range(0, moves.Count - 1)];
         }
 
