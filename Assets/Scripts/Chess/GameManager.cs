@@ -35,11 +35,9 @@ namespace Assets.Scripts
 
         void Start()
         {
-            Board = new Board();
             boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
             boardGraphics.CreateBoardGraphics();
-            Board.Squares = FenUtils.LoadFEN(FenUtils.StartingPosition, out List<Piece> pieces);
-            Board.Pieces = pieces;
+            Board = FenUtils.LoadFEN();
             boardGraphics.UpdatePieceSprites(Board.Squares);
         }
 

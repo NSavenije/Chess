@@ -22,17 +22,37 @@ namespace Assets.Scripts
         public bool turnWhite;
         public Stack<Move> previousMoves;
         private Move previousMove;
+        private int enPassantSquare;
         private List<int> whiteControlledSquares;
         private List<int> blackControlledSquares;
+        public Dictionary<string, bool> castlingRights;
 
-        public Board()
+        public Board(List<Piece> pieces, bool turn, Dictionary<string, bool> castles, int enPassant)
         {
-            ActiveSquare = -1;
+            // Instantiate objects
             legalMoves = new List<Move>();
-            Pieces = new List<Piece>();
             previousMoves = new Stack<Move>();
             previousMove = new Move(-1, -1, null, 0);
-            turnWhite = true;
+
+            // Fill board
+            Pieces = pieces;
+            Squares = PlacePiecesOnBoard(pieces);
+            castlingRights = castles;
+
+            // Set flags
+            ActiveSquare = -1;
+            turnWhite = turn;
+            enPassantSquare = enPassant;
+        }
+
+        private Piece[] PlacePiecesOnBoard(List<Piece> pieces)
+        {
+            Piece[] squares = new Piece[64];
+            foreach(Piece p in pieces)
+            {
+                squares[p.Square] = p;
+            }
+            return squares;
         }
 
         // Generate all moves
@@ -52,7 +72,7 @@ namespace Assets.Scripts
         {
             List<Move> moves = new List<Move>();
             int square = piece.Square;
-            moves = FindCastlingMoves(piece, previousMove);
+            moves = GetCastlingMoves(piece, previousMove);
             moves.AddRange(FindLegalPawnMoves(piece, previousMove));
             var moveSets = Piece.GetMovesets(piece.Type);
             List<int> dirs = moveSets.SelectMany(x => x).ToList();
@@ -319,13 +339,16 @@ namespace Assets.Scripts
             return false;
         }
 
-        private List<Move> FindCastlingMoves(Piece king, Move previousMove)
+        private List<Move> GetCastlingMoves(Piece king, Move previousMove)
         {
             List<Move> moves = new List<Move>();
             if (king.Type != Piece.PType.King)
                 return moves;
-            
-            if (king.PMoved == 0)
+
+            bool Kk = king.Color == Piece.PColor.White ? castlingRights["K"] : castlingRights["k"];
+            bool Qq = king.Color == Piece.PColor.White ? castlingRights["Q"] : castlingRights["q"];
+
+            if (king.PMoved == 0 && (Kk || Qq))
             {
                 var rooks = Piece.GetPieces(Piece.PType.Rook, king.Color, Pieces);
                 foreach (var rook in rooks)
@@ -333,7 +356,7 @@ namespace Assets.Scripts
                     // This rook and king havent moved, check if the squares between them are open
                     if (rook.PMoved == 0)
                     {
-                        if (rook.Square > king.Square) // King Side
+                        if (rook.Square > king.Square && Kk) // King Side
                         {
                             bool allEmpty = true;
                             for (int s = king.Square + 1; s < rook.Square; s++)
@@ -351,7 +374,7 @@ namespace Assets.Scripts
                                     }
                             }
                         }
-                        else // Queen side
+                        else if (Qq) // Queen side
                         {
                             bool allEmpty = true;
                             for (int s = king.Square - 1; s > rook.Square; s--)

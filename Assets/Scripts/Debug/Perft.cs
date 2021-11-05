@@ -34,7 +34,7 @@ namespace Assets.Scripts
             List<Board> nodes = new List<Board>();
             if (depth == 0)
             {
-                Board update = new Board();
+                Board update = new Board(b.Pieces, b.turnWhite, b.castlingRights, -1);
                 //update.DoMove(b.previousMoves.Peek());
                 for(int i = 0; i < 64; i++)
                 {
