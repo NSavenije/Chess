@@ -29,6 +29,23 @@ namespace Assets.Scripts
             return nodes;
         }
 
+        public static int FastPerft(Board b, int depth)
+        {   
+            int nodes = 0, i;
+            if (depth == 0)
+                return nodes;
+
+            List<Move> ms = b.GetAllLegalMoves(false);
+            foreach (Move m in ms)
+            {
+                b.DoMove(m);
+                //if (b.wou)
+                //    nodes += Perft(depth - 1);
+                //UndoMove(move_list[i]);
+            }
+            return nodes;
+        }
+
         public static List<Board> DoPerftBoards(Board b, int depth)
         {
             List<Board> nodes = new List<Board>();

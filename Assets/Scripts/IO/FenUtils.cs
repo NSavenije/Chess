@@ -22,9 +22,7 @@ namespace Assets.Scripts
                 int f = 0;
                 for (int file = 0; file < ranks[rank].Length; file++)
                 {
-                    string r = ranks[rank];
-                    Debug.Log($"{r}: {file}");
-                    char c = r[file];
+                    char c = ranks[rank][file];
                     if (char.IsNumber(c))
                     {
                         f += (int)char.GetNumericValue(c);
@@ -34,6 +32,10 @@ namespace Assets.Scripts
                     int square = (7 - rank) * 8 + f;
 
                     Piece piece = new Piece(pieceCode, square, 0);
+                    if (piece.Type == Piece.PType.Pawn && piece.Color == Piece.PColor.White && (7 - rank) > 1)
+                        piece.PMoved = 100;
+                    else if (piece.Type == Piece.PType.Pawn && piece.Color == Piece.PColor.Black && (7 - rank) < 6)
+                        piece.PMoved = 100;
                     pieces.Add(piece);
                     f++;
                 }

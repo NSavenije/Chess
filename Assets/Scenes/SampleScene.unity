@@ -308,13 +308,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f538c720ba71e8f4e85a983380e14ffa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  humanPlayerWhite: 0
-  humanPlayerBlack: 0
+  humanPlayerWhite: 1
+  humanPlayerBlack: 1
   BoardGraphics: {fileID: 220858734}
   cam: {fileID: 519420031}
   inputState: 0
   ComputerPlayerAlgorithm: 1
   Paused: 1
+  perftDepth: 2
 --- !u!4 &1159028068
 Transform:
   m_ObjectHideFlags: 0
