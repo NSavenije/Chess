@@ -15,7 +15,7 @@ namespace Assets.Scripts
         public int Square;
         public int PMoved = 0;
         public bool LongRange = false;
-        public List<List<int>> Movesets;
+        public List<int> Movesets;
 
         public Piece(int code, int square, int moved)
         {
@@ -143,31 +143,31 @@ namespace Assets.Scripts
             return false;
         }
 
-        public static List<List<int>> GetMovesets(PType type)
+        public static List<int> GetMovesets(PType type)
         {
-            List<List<int>> movesets = new List<List<int>>();
+            List<int> movesets = new List<int>();
             switch (type)
             {
                 case PType.Pawn:
-                    movesets.Add(PawnMoves);
-                    movesets.Add(PawnCaptures);
+                    movesets.AddRange(PawnMoves);
+                    movesets.AddRange(PawnCaptures);
                     break;
                 case PType.Rook:
-                    movesets.Add(slides);
+                    movesets.AddRange(slides);
                     break;
                 case PType.Knight:
-                    movesets.Add(knightJumps);
+                    movesets.AddRange(knightJumps);
                     break;
                 case PType.Bishop:
-                    movesets.Add(diagonals);
+                    movesets.AddRange(diagonals);
                     break;
                 case PType.Queen:
-                    movesets.Add(diagonals);
-                    movesets.Add(slides);
+                    movesets.AddRange(diagonals);
+                    movesets.AddRange(slides);
                     break;
                 case PType.King:
-                    movesets.Add(diagonals);
-                    movesets.Add(slides);
+                    movesets.AddRange(diagonals);
+                    movesets.AddRange(slides);
                     break;
                 default:
                     break;
@@ -175,7 +175,7 @@ namespace Assets.Scripts
             return movesets;
         }
 
-        public static List<List<int>> GetMovesets(int piece)
+        public static List<int> GetMovesets(int piece)
         {
             return GetMovesets(GetPieceType(piece));
         }

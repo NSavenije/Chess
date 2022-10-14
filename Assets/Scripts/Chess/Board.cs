@@ -83,16 +83,19 @@ namespace Assets.Scripts
         }
 
         // Generate moves
-        public List<Move> GetLegalMoves(Piece piece, bool FirstPassCheckForChecks = true, int dir = 0)
+        public List<Move> GetLegalMoves(Piece piece, bool FirstPassCheckForChecks = true, int dir = int.MaxValue)
         {
             countlegalmovescheck++;
             List<Move> moves = new List<Move>();
             int square = piece.Square;
             if (FirstPassCheckForChecks)
                 moves = GetCastlingMoves(piece, previousMove);
-            moves.AddRange(FindPawnMoves(piece, previousMove, FirstPassCheckForChecks));
+            if (piece.Type == Piece.PType.Pawn)
+                moves.AddRange(FindPawnMoves(piece, previousMove, FirstPassCheckForChecks));
             // check all moves or only the one point at the king?
-            List<int> dirs = dir == 0 ? Piece.GetMovesets(piece.Type).SelectMany(x => x).ToList() : new List<int>(){dir};
+            List<int> dirs = dir == int.MaxValue ? Piece.GetMovesets(piece.Type) : new List<int>(){dir};
+            if (dir == 0)
+                return moves;
             for (int i = 0; i < dirs.Count; i++)
             {
                 int target = square + dirs[i];
@@ -298,10 +301,10 @@ namespace Assets.Scripts
             if (!TryGetPieceFromSquare(square, out Piece piece))
                 return false;
 
-            // Kings cant capture kings.  Scared, discovered attacks? 
-            if (piece.Type == Piece.PType.King){
-                return false;
-            }
+            //// Kings cant capture kings.  Scared, discovered attacks? 
+            //if (piece.Type == Piece.PType.King){
+            //    return false;
+            //}
 
             // Do the move that could result in check without checking.
             Piece pieceAtTarget = Squares[move.Target];
@@ -317,25 +320,27 @@ namespace Assets.Scripts
                 if (p.Square == move.Target)
                     continue;
                 // Im gonna filter the movesets
+                int dir = int.MaxValue;
                 switch (p.Type)
                 {
                     case Piece.PType.Bishop:
-                        Utils.SameDiagonal(p, kingSquare, dir);
+                        Utils.SameDiagonal(p.Square, kingSquare, out dir);
                         break;
                     case Piece.PType.Rook:
-                        Utils.SameFileRank(p, kingSquare, dir);
+                        Utils.SameFileRank(p.Square, kingSquare, out dir);
                         break;
                     case Piece.PType.Queen:
-                        if (Utils.SameFileRank(p, kingSquare, dir))
+                        if (Utils.SameFileRank(p.Square, kingSquare, out dir))
                             break;
-                        Utils.SameDiagonal(p, kingSquare, dir);
+                        Utils.SameDiagonal(p.Square, kingSquare, out dir);
                         break;
-                    case piece.PType.Pawn:
+                    case Piece.PType.Pawn:
                         //If a pawn
                         break;
                 }
                 
-                if (GetLegalMoves(p, false, dir).Exists(x => x.Target == kingSquare))
+                
+                if (dir != 0 && GetLegalMoves(p, false, dir).Exists(x => x.Target == kingSquare))
                 {
                     //Reset the board to the orignal state.
                     piece.Square = square;
@@ -490,16 +495,17 @@ namespace Assets.Scripts
                     destination = piece.Square - Piece.PawnCaptures[i];
                 else
                     continue;
+                Piece enemyPiece;
                 // Check if I can capture a king, then return. 
-                if (!firstPass && TryGetPieceFromSquare(destination, enemyPiece)) {
-                    if (enemyPiece.Type == Pieces.PType.King) {
+                if (!firstPass && TryGetPieceFromSquare(destination, out enemyPiece)) {
+                    if (enemyPiece.Type == Piece.PType.King) {
                         moves.Add(new Move(piece.Square, destination, piece, flag, enemyPiece));
                         return moves;
                     }
                 }
                 if (destination < 8 || destination > 54)
                     flag = Move.MFlag.Promoting;
-                if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
+                if (TryGetPieceFromSquare(destination, out enemyPiece))
                 {
                     if (!Utils.SameColor(piece, enemyPiece))
                     {
