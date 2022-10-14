@@ -83,16 +83,16 @@ namespace Assets.Scripts
         }
 
         // Generate moves
-        public List<Move> GetLegalMoves(Piece piece, bool FirstPassCheckForChecks = true)
+        public List<Move> GetLegalMoves(Piece piece, bool FirstPassCheckForChecks = true, int dir = 0)
         {
             countlegalmovescheck++;
             List<Move> moves = new List<Move>();
             int square = piece.Square;
             if (FirstPassCheckForChecks)
                 moves = GetCastlingMoves(piece, previousMove);
-            moves.AddRange(FindPawnMoves(piece, previousMove, !FirstPassCheckForChecks));
-            var moveSets = Piece.GetMovesets(piece.Type);
-            List<int> dirs = moveSets.SelectMany(x => x).ToList();
+            moves.AddRange(FindPawnMoves(piece, previousMove, FirstPassCheckForChecks));
+            // check all moves or only the one point at the king?
+            List<int> dirs = dir == 0 ? Piece.GetMovesets(piece.Type).SelectMany(x => x).ToList() : new List<int>(){dir};
             for (int i = 0; i < dirs.Count; i++)
             {
                 int target = square + dirs[i];
@@ -298,6 +298,11 @@ namespace Assets.Scripts
             if (!TryGetPieceFromSquare(square, out Piece piece))
                 return false;
 
+            // Kings cant capture kings.  Scared, discovered attacks? 
+            if (piece.Type == Piece.PType.King){
+                return false;
+            }
+
             // Do the move that could result in check without checking.
             Piece pieceAtTarget = Squares[move.Target];
             piece.Square = move.Target;
@@ -315,12 +320,22 @@ namespace Assets.Scripts
                 switch (p.Type)
                 {
                     case Piece.PType.Bishop:
-                        Utils.SameDiagonal(p, kingSquare);
+                        Utils.SameDiagonal(p, kingSquare, dir);
                         break;
-                    case Piece.PType.Rook;
-                        Utils.
+                    case Piece.PType.Rook:
+                        Utils.SameFileRank(p, kingSquare, dir);
+                        break;
+                    case Piece.PType.Queen:
+                        if (Utils.SameFileRank(p, kingSquare, dir))
+                            break;
+                        Utils.SameDiagonal(p, kingSquare, dir);
+                        break;
+                    case piece.PType.Pawn:
+                        //If a pawn
+                        break;
                 }
-                if (GetLegalMoves(p, false).Exists(x => x.Target == kingSquare))
+                
+                if (GetLegalMoves(p, false, dir).Exists(x => x.Target == kingSquare))
                 {
                     //Reset the board to the orignal state.
                     piece.Square = square;
@@ -441,27 +456,31 @@ namespace Assets.Scripts
 
             int perspective = piece.Color == Piece.PColor.White ? 1 : -1;
             
-            for (int i = 0; i < Piece.PawnMoves.Count; i++)
-            {
-                // If we have moved, we can no longer push the pawn.
-                if (piece.PMoved > 0 && i == 1) break;
-                int flag = 0;
-                int destination = piece.Square + (perspective * Piece.PawnMoves[i]);
-                if (destination < 8 || destination > 54)
-                    flag = Move.MFlag.Promoting;
-                if (!TryGetPieceFromSquare(destination, out Piece _))
+            // Moving a pawn cant capture a king.
+            if (firstPass) {
+                for (int i = 0; i < Piece.PawnMoves.Count; i++)
                 {
-                    if (flag == Move.MFlag.Promoting)
+                    // If we have moved, we can no longer push the pawn.
+                    if (piece.PMoved > 0 && i == 1) break;
+                    int flag = 0;
+                    int destination = piece.Square + (perspective * Piece.PawnMoves[i]);
+                    if (destination < 8 || destination > 54)
+                        flag = Move.MFlag.Promoting;
+                    if (!TryGetPieceFromSquare(destination, out Piece _))
                     {
-                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToKnight));
-                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToBishop));
-                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToRook));
-                        moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToQueen));
+                        if (flag == Move.MFlag.Promoting)
+                        {
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToKnight));
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToBishop));
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToRook));
+                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToQueen));
+                        }
+                        moves.Add(new Move(piece.Square, destination, piece, i));
                     }
-                    moves.Add(new Move(piece.Square, destination, piece, i));
-                }
-                else break; //If it is blocked, there is no use in checking if the pawn can move up further.
+                    else break; //If it is blocked, there is no use in checking if the pawn can move up further.
+                } 
             }
+
             for (int i = 0; i < Piece.PawnCaptures.Count; i++)
             {
                 int destination; int flag = Move.MFlag.None;
@@ -471,6 +490,13 @@ namespace Assets.Scripts
                     destination = piece.Square - Piece.PawnCaptures[i];
                 else
                     continue;
+                // Check if I can capture a king, then return. 
+                if (!firstPass && TryGetPieceFromSquare(destination, enemyPiece)) {
+                    if (enemyPiece.Type == Pieces.PType.King) {
+                        moves.Add(new Move(piece.Square, destination, piece, flag, enemyPiece));
+                        return moves;
+                    }
+                }
                 if (destination < 8 || destination > 54)
                     flag = Move.MFlag.Promoting;
                 if (TryGetPieceFromSquare(destination, out Piece enemyPiece))
@@ -490,9 +516,9 @@ namespace Assets.Scripts
                 }
             }
 
-            // Check for en passent
+            // Check for en passant
             bool sameRank = Utils.SquareToFileRank(piece.Square).Item2 == Utils.SquareToFileRank(previousMove.Target).Item2;
-            if (previousMove.Flag == Move.MFlag.PawnPush && sameRank)// && firstPass)
+            if (firstPass && previousMove.Flag == Move.MFlag.PawnPush && sameRank) 
             {
                 if (perspective == 1)
                 {

@@ -162,8 +162,53 @@ namespace Assets.Scripts
             0,1 | 1,1 | 2,1 | 3,1
             0,0 | 1,0 | 2,0 | 3,0
             */
-            if (f1 -)
-            
+            if (f2 - f1 == r2 - r1 && f2 - f1 > 0)
+            {
+                dir = 9;
+                return true;
+            }
+            // TOP LEFT
+            else if (f1 - f2 == r2 - r1 && f1 - f2 > 0) 
+            {
+                dir = 7;
+                return true;
+            }
+            // BOTTOM RIGHT
+            else if (f2 - f1 == r1 - r2 && f2 - f1 > 0)
+            {
+                dir = -7;
+                return true;
+            }
+            // BOTTOM LEFT
+            else if (f1 - f2 == r1 - r2 && f1 - f2 > 0)
+            {
+                dir = -9;
+                return true;
+            }
+            else Debug.LogError("Impossible location");
+            return false;
+        }
+        
+        public static bool SameFileRank(int s1, int s2, out int dir)
+        {
+            var (f1, r1) = SquareToFileRank(s1);
+            var (f2, r2) = SquareToFileRank(s2);
+            dir = 0;
+
+            // Same Rank?
+            if (r1 == r2){
+                //Is s2 to the right of s1? Else left.
+                dir = f1 < f2 ? 1 : -1;
+                return true;
+            }
+            // Same file?
+            else if (f1 == f2){
+                //Is s2 above s1? Else below
+                dir = r1 < r2 ? 8 : -8;
+                return true;
+            }
+
+            return false;
         }
     }
 }
