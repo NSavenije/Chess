@@ -15,6 +15,7 @@ namespace Assets.Scripts
         public int Square;
         public int PMoved = 0;
         public bool LongRange = false;
+        public List<List<int>> Movesets;
 
         public Piece(int code, int square, int moved)
         {
@@ -24,6 +25,7 @@ namespace Assets.Scripts
             Square = square;
             PMoved = moved;
             LongRange = IsLongRange(code);
+            Movesets = GetMovesets(GetPieceType(code));
         }
 
         public const int None =   0; // 0-2nd

@@ -145,5 +145,25 @@ namespace Assets.Scripts
             int rank = square / 8;
             return (file, rank);
         }
+
+        public static bool SameDiagonal(int s1, int s2, out int dir)
+        {
+            var (f1, r1) = SquareToFileRank(s1);
+            var (f2, r2) = SquareToFileRank(s2);
+            dir = 0;
+
+            // Same diagonal?
+            if (Math.Abs(f1 - f2) != Math.Abs(r1 - r2))
+                return false;
+
+            /* Is s2 to the TR of s1?
+            0,3 | 1,3 | 2,3 | 3,3
+            0,2 | 1,2 | 2,2 | 3,2
+            0,1 | 1,1 | 2,1 | 3,1
+            0,0 | 1,0 | 2,0 | 3,0
+            */
+            if (f1 -)
+            
+        }
     }
 }

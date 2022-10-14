@@ -305,17 +305,21 @@ namespace Assets.Scripts
             Squares[move.Target] = piece;
 
             // Check if my King can now be captured by any of the opposing pieces.
-            List<Piece> kings = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces);
-            if (kings.Count == 0)
-            {
-                return true;
-            }
-            int kingSquare = kings[0].Square;
+            int kingSquare = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces)[0].Square;
             // Remove captured piece from this list
             foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(piece), Pieces))
             {
                 if (p.Square == move.Target)
                     continue;
+                // Im gonna filter the movesets
+                switch (p.Type)
+                {
+                    case Piece.PType.Bishop:
+                        Utils.SameDiagonal(p, kingSquare);
+                        break;
+                    case Piece.PType.Rook;
+                        Utils.
+                }
                 if (GetLegalMoves(p, false).Exists(x => x.Target == kingSquare))
                 {
                     //Reset the board to the orignal state.
@@ -439,6 +443,7 @@ namespace Assets.Scripts
             
             for (int i = 0; i < Piece.PawnMoves.Count; i++)
             {
+                // If we have moved, we can no longer push the pawn.
                 if (piece.PMoved > 0 && i == 1) break;
                 int flag = 0;
                 int destination = piece.Square + (perspective * Piece.PawnMoves[i]);
