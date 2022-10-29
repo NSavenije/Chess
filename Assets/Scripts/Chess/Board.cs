@@ -3,32 +3,33 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using UnityEngine;
-using Unity;
 
 namespace Assets.Scripts
 {
     public class Board
     {
-        Piece[] _square = new Piece[64];
-        public Piece[] Squares
+        Square[,] _square = new Square[8,8];
+        public Square[,] Squares
         {
             get { return _square; }
             set { _square = value; }
         }
         public List<Piece> Pieces;
         public List<Move> legalMoves;
-        public int ActiveSquare;
+        public Square ActiveSquare;
         public bool turnWhite;
         public Stack<Move> previousMoves;
         private Move previousMove;
-        private int enPassantSquare;
+        private Square enPassantTargetSquare;
         public Dictionary<string, bool> castlingRights;
+        int halfMovesSinceLastCapture;
+        int moveCount;
         private List<int>[] attackMask;
         private bool[] doubleCheck = { false, false };
+        // private (List<Square>, List<Square>) potentialCheckSquares;
         public int countlegalmovescheck = 0;
 
-        public Board(List<Piece> pieces, bool turn, Dictionary<string, bool> castles, int enPassant)
+        public Board(List<Piece> pieces, bool turn, Dictionary<string, bool> castles, int enPassant, int movesSinceCapture, int moveCounter)
         {
             // Instantiate objects
             legalMoves = new List<Move>();
@@ -38,36 +39,63 @@ namespace Assets.Scripts
 
             // Fill board
             Pieces = pieces;
-            Squares = PlacePiecesOnBoard(pieces);
+            Squares = InitializeSquares(pieces);
+            // potentialCheckSquares = UpdatePotentialCheckSquares();
             castlingRights = castles;
-            //attackMask[0] = CreateInitialAttackMask(Piece.PColor.White);
-            //attackMask[1] = CreateInitialAttackMask(Piece.PColor.Black);
 
             // Set flags
-            ActiveSquare = -1;
+            ActiveSquare = null;
             turnWhite = turn;
             enPassantSquare = enPassant;
+            halfMovesSinceLastCapture = movesSinceCapture;
+            moveCount = moveCounter;
+
+            // Build Initial attack mask for both colours
+            CreateInitialAttackMask();
         }
 
-        private Piece[] PlacePiecesOnBoard(List<Piece> pieces)
+        private Square[,] InitializeSquares(List<Piece> pieces)
         {
-            Piece[] squares = new Piece[64];
+            Square[,] squares = new Square[8,8];
+            for(int f = 0; f < 8; f++){
+                for (int r = 0; r < 8; r++)
+                {
+                    square[f,r] = new Square(f,r);
+                }
+            }
             foreach(Piece p in pieces)
             {
-                squares[p.Square] = p;
+                squares[p.Square].Piece = p;
             }
-            return squares;
         }
 
-        private List<int> CreateInitialAttackMask(Piece.PColor col)
+        // private (List<Square>, List<Square>) UpdatePotentialCheckSquares()
+        // {
+        //     (List<Square>, List<Square>) result;
+        //     result.Item1 = UpdatePotentialCheckSquares(Piece.GetPieces(Piece.PType.King, Piece.PColor.White, Pieces)[0]);
+        //     result.Item2 = UpdatePotentialCheckSquares(Piece.GetPieces(Piece.PType.King, Piece.PColor.Black, Pieces)[0]);
+        //     return result;
+        // }
+
+        // private (List<Square>, List<Square>) UpdatePotentialCheckSquares(Piece king)
+        // {
+            
+        // }
+
+        private void CreateInitialAttackMask()
         {
-            List<int> mask = new List<int>();
+            bool origalTurn = turnWhite;
+            turnWhite = true;
             List<Move> ms = GetAllLegalMoves();
             foreach(Move move in ms)
-            {
-                mask.Add(move.Target);
-            }
-            return mask;
+                move.Target.ControlledByWhite.Add(move.Piece);
+            ms.Clear();
+            turnWhite = false;
+            ms = GetAllLegalMoves();
+            foreach(Move move in ms)
+                move.Target.ControlledByBlack.Add(move.Piece);
+            ms.Clear();
+            turnWhite = origalTurn;
         }
 
         // Generate all moves
@@ -75,59 +103,96 @@ namespace Assets.Scripts
         {
             List<Move> moves = new List<Move>();
             Piece.PColor c = turnWhite ? Piece.PColor.White : Piece.PColor.Black;
+            //AM I IN CHECK?
+            Square king = Squares[Piece.GetPieces(c, Piece.PType.King, Pieces)[0].Square];
+            // Double check?
+            if (king.GetAttackingPieces(isWhite).Count > 1)
+            {
+                return GetLegalMoves(king.Piece);
+            }
+            // else if (king.GetAttackingPieces(isWhite).Count > 0)
+            // {
+            //     doubleCheck = true;
+            // }
             foreach (Piece p in Piece.GetPieces(c, Pieces))
             {
-                moves.AddRange(GetLegalMoves(p));
+                moves.AddRange(GetLegalMoves(p, king));
             }
             return moves;
         }
 
         // Generate moves
-        public List<Move> GetLegalMoves(Piece piece, bool FirstPassCheckForChecks = true, int dir = int.MaxValue)
+        public List<Move> GetLegalMoves(Piece piece, Square kingSquare)
         {
             countlegalmovescheck++;
             List<Move> moves = new List<Move>();
-            int square = piece.Square;
-            if (FirstPassCheckForChecks)
-                moves = GetCastlingMoves(piece, previousMove);
-            if (piece.Type == Piece.PType.Pawn)
-                moves.AddRange(FindPawnMoves(piece, previousMove, FirstPassCheckForChecks));
-            // check all moves or only the one point at the king?
-            List<int> dirs = dir == int.MaxValue ? Piece.GetMovesets(piece.Type) : new List<int>(){dir};
-            if (dir == 0)
+            Square square = Squares[piece.Square];
+            
+            bool inCheck = kingSquare.IsAttacked(turnWhite);
+            bool inPin = SquarePinned(square, out Piece pinningPiece);
+
+            // Cant not move a pinned piece if in check
+            if (inCheck && inPin && piece.Type != Piece.PType.King)
                 return moves;
-            for (int i = 0; i < dirs.Count; i++)
+
+            // Can only castle while not in check
+            if (piece.Type == Piece.PType.King && !inCheck)
+                moves = GetCastlingMoves(piece, previousMove);
+
+            if (piece.Type == Piece.PType.Pawn)
+                moves.AddRange(FindPawnMoves(piece, previousMove));
+
+            List<(int,int)> dirs = piece.Moveset;
+            if (inPin)
             {
-                int target = square + dirs[i];
+                // Can only move on the axis between the attacking piece and the king.
+                (int,int) pinningDir = Utils.DetermineAttackDirection(kingSquare.Sq, pinningPiece.Square);
+                List<(int,int)> pinDirs = new();
+                pinDirs.Add(pinningDir);
+                pinDirs.Add((pinningDir.Item1 * -1),(pinningDir.Item2 * -1));
+                dirs = dirs.FindAll(d => pinDirs.Contains(d));
+                pinDirs.Clear();
+            }
+            else if (inCheck)
+            {
+                // Can I Take the attacking piece?
+                // Can I Move to block
+                // Except for knights checking my king
+                Piece attackingPiece = kingSquare.GetAttackingPieces(turnWhite)[0];
+                List<(int,int)> legalSquares = new();
+                if (attackingPiece.Type != Piece.PType.Knight)
+                {
+                    legalSquares = GetSquaresInRay(attackingPiece.Square, kingSquare.Sq, Utils.DetermineAttackDirection(attackingPiece.Square, kingSquare.Sq));
+                }
+                else {
+                    legalSquares.Add(Squares[attackingPiece.Square]);
+                }
+            }
+            foreach(var dir in dirs)
+            {
+                (int,int) target = square.AddDir(dir);
                 if (piece.LongRange)
                 {
-                    int currentSquare = square;
-                    while (SquareExists(currentSquare, dirs[i]) && !Blocked(piece, target))
+                    Square currentSquare = square;
+                    while (SquareExists(currentSquare, dir) && !Blocked(piece, target))
                     {
-                        TryGetPieceFromSquare(target, out Piece enemyPiece);
-                        moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
-                        if (TryGetPieceFromSquare(target, out Piece _))
+                        Piece enemy = Squares[target].Piece;
+                        if ((inCheck && legalSquares.Contains(square)) || !inCheck)
+                            moves.Add(new Move(square, target, piece, Move.MFlag.None, enemy));
+                        if (enemy)
                             break;
                         currentSquare = target;
-                        target += dirs[i];
+                        target = Utils.AddDir(target, dir);
                     }
                 }
                 else if (piece.Type != Piece.PType.Pawn)
                 {
-                    if (SquareExists(square, dirs[i]) && !Blocked(piece, target))
+                    if (SquareExists(square, dir) && !Blocked(piece, target))
                     {
-                        TryGetPieceFromSquare(target, out Piece enemyPiece);
-                        moves.Add(new Move(square, target, piece, Move.MFlag.None, enemyPiece));
+                        Piece enemy = Squares[target].Piece;
+                        if ((inCheck && legalSquares.Contains(square)) || !inCheck)
+                            moves.Add(new Move(square, target, piece, Move.MFlag.None, enemy));
                     }
-                }
-            }
-            if (FirstPassCheckForChecks)
-            {
-                foreach (Move move in moves.ToList())
-                {
-                    // If the opponent can capture my king after I do this move, (I was in check or movoed a piece that was pinned), dont.
-                    if (WouldResultInKingCapture(square, move))
-                        moves.Remove(move);
                 }
             }
             return moves;
@@ -296,89 +361,22 @@ namespace Assets.Scripts
             }
         }
 
-        private bool WouldResultInKingCapture(int square, Move move)
+
+        private bool SquareExists(Square square, (int,int) dir, bool reverse = false)
         {
-            if (!TryGetPieceFromSquare(square, out Piece piece))
-                return false;
-
-            //// Kings cant capture kings.  Scared, discovered attacks? 
-            //if (piece.Type == Piece.PType.King){
-            //    return false;
-            //}
-
-            // Do the move that could result in check without checking.
-            Piece pieceAtTarget = Squares[move.Target];
-            piece.Square = move.Target;
-            Squares[square] = null;
-            Squares[move.Target] = piece;
-
-            // Check if my King can now be captured by any of the opposing pieces.
-            int kingSquare = Piece.GetPieces(Piece.PType.King, piece.Color, Pieces)[0].Square;
-            // Remove captured piece from this list
-            foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(piece), Pieces))
-            {
-                if (p.Square == move.Target)
-                    continue;
-                // Im gonna filter the movesets
-                int dir = int.MaxValue;
-                switch (p.Type)
-                {
-                    case Piece.PType.Bishop:
-                        Utils.SameDiagonal(p.Square, kingSquare, out dir);
-                        break;
-                    case Piece.PType.Rook:
-                        Utils.SameFileRank(p.Square, kingSquare, out dir);
-                        break;
-                    case Piece.PType.Queen:
-                        if (Utils.SameFileRank(p.Square, kingSquare, out dir))
-                            break;
-                        Utils.SameDiagonal(p.Square, kingSquare, out dir);
-                        break;
-                    case Piece.PType.Pawn:
-                        //If a pawn
-                        break;
-                }
-                
-                
-                if (dir != 0 && GetLegalMoves(p, false, dir).Exists(x => x.Target == kingSquare))
-                {
-                    //Reset the board to the orignal state.
-                    piece.Square = square;
-                    Squares[square] = piece;
-                    Squares[move.Target] = pieceAtTarget;
-                    return true;
-                }
-            }
-            piece.Square = square;
-            Squares[square] = piece;
-            Squares[move.Target] = pieceAtTarget;
-            return false;
-        }
-
-        private bool SquareExists(int square, int direction, bool reverse = false)
-        {
-            if (square + direction < 0 || square + direction > 63)
-                return false;
-            (int, int) fr = Utils.SquareToFileRank(square);
-            (int, int) dir = Utils.GetFileRankDirFromSquareDir(direction);
             if (reverse)
-                dir = (dir.Item1 * -1, dir.Item1 * -1);
-            if (fr.Item1 + dir.Item1 < 0 || fr.Item1 + dir.Item1 > 7)
+                dir = (dir.Item1, dir.Item2 * -1);
+            if (square.File + dir.Item1 < 0 || square.Rank + dir.Item1 > 7)
                 return false;
-            if (fr.Item2 + dir.Item2 < 0 || fr.Item2 + dir.Item2 > 7)
+            if (square.File + dir.Item2 < 0 || square.Rank + dir.Item2 > 7)
                 return false;
             return true;
         }
 
-        private bool SquareExists(int destination)
+        private bool Blocked(Piece piece, Square destination)
         {
-            return destination >= 0 && destination < 64;
-        }
-
-        private bool Blocked(Piece piece, int destination, bool foundOtherPiece = false)
-        {
-            if (TryGetPieceFromSquare(destination, out Piece target))
-                if (foundOtherPiece || Utils.SameColor(piece, target))
+            if (destination.Piece)
+                if (Utils.SameColor(piece, destination.Piece))
                     return true;
             return false;
         }
@@ -394,154 +392,210 @@ namespace Assets.Scripts
 
             if (king.PMoved == 0 && (Kk || Qq))
             {
-                var rooks = Piece.GetPieces(Piece.PType.Rook, king.Color, Pieces);
-                foreach (var rook in rooks)
+                int rank = turnWhite ? 0 : 7;
+                Square kingSquare = Squares[4 /*e*/, rank];
+                if (kingSquare.IsAttacked(turnWhite))
+                    return moves;
+                bool canCastle = true;
+                // TODO Not sure if allowed
+                if (Squares[0,rank].Piece?.PMoved == 0 && Qq)
                 {
-                    // This rook and king havent moved, check if the squares between them are open
-                    if (rook.PMoved == 0)
+                    for (int file = 1; file <= 3; file++)
                     {
-                        if (rook.Square > king.Square && Kk) // King Side
-                        {
-                            bool allEmpty = true;
-                            for (int s = king.Square + 1; s < rook.Square; s++)
-                                if (TryGetPieceFromSquare(s, out _))
-                                {
-                                    allEmpty = false;
-                                    break;
-                                }
-                            if (allEmpty)
-                            {
-                                bool canCastle = true;
-                                foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
-                                    if (GetLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square + 1 || x.Target == king.Square + 2))
-                                    {
-                                        canCastle = false;
-                                        break;
-                                    }
-                                if (canCastle)
-                                    moves.Add(new Move(king.Square, king.Square + 2, king, Move.MFlag.Castling));
-                            }
+                        var sq = Squares[file,rank];
+                        // piece in the way
+                        if (sq.Piece) {
+                            canCastle = false;
                         }
-                        else if (Qq) // Queen side
-                        {
-                            bool allEmpty = true;
-                            for (int s = king.Square - 1; s > rook.Square; s--)
-                                if (TryGetPieceFromSquare(s, out _))
-                                    allEmpty = false;
-                            if (allEmpty)
-                            {
-                                bool canCastle = true;
-                                foreach (Piece p in Piece.GetPieces(Piece.GetOtherColor(king), Pieces))
-                                    if (GetLegalMoves(p, false).Exists(x => x.Target == king.Square || x.Target == king.Square - 1 || x.Target == king.Square - 2))
-                                    {
-                                        canCastle = false;
-                                        break;
-                                    }
-                                if (canCastle)
-                                    moves.Add(new Move(king.Square, king.Square - 2, king, Move.MFlag.Castling));
-                            }
+                        // King would move through check.
+                        else if (sq.IsAttacked(turnWhite)) {
+                            canCastle = false; 
                         }
+                        if (!canCastle) break;
                     }
+                    if (canCastle) 
+                        moves.Add(new Move(kingSquare, Squares[1,rank], king, Move.MFlag.Castling));
                 }
+                if (Squares[7,rank].Piece?.PMoved == 0 && Kk)
+                {
+                    bool canCastle = true;
+                    for (int file = 5; file <= 6; file++)
+                    {
+                        var sq = Squares[file,rank];
+                        // piece in the way
+                        if (sq.Piece) {
+                            canCastle = false;
+                        }
+                        // King would move through check.
+                        else if (sq.IsAttacked(turnWhite)) {
+                            canCastle = false; 
+                        }
+                        if (!canCastle) break;
+                    }
+                    if (canCastle) 
+                        moves.Add(new Move(kingSquare, Squares[6,rank], king, Move.MFlag.Castling));
+                }   
             }
             return moves;
         }
 
         /// <summary>
         /// Generates moves for promotions pushes captures for pawns.
+        /// move forward if not blocked
+        /// push is on original rank && not blocked
+        /// capture if enemy piece there
+        /// capture if en passant
+        /// promote
         /// </summary>
         /// <param name="piece">Any piece</param>
         /// <param name="previousMove">Previous move</param>
         /// <returns></returns>
-        private List<Move> FindPawnMoves(Piece piece, Move previousMove, bool firstPass)
+        private List<Move> FindPawnMoves(Piece pawn, Move previousMove, bool firstPass)
         {
-            List<Move> moves = new List<Move>();
-            if (piece.Type != Piece.PType.Pawn)
-                return moves;
+            List<Move> moves;
+            Square sq = Squares[piece.Square];
+            int direction = turnWhite ? 1 : -1;
+            int promotionRank = direction == 1 ? 7 : 0;
+            int pushRank = direction == 1 ? 1 : 6;
 
-            int perspective = piece.Color == Piece.PColor.White ? 1 : -1;
-            
-            // Moving a pawn cant capture a king.
-            if (firstPass) {
-                for (int i = 0; i < Piece.PawnMoves.Count; i++)
-                {
-                    // If we have moved, we can no longer push the pawn.
-                    if (piece.PMoved > 0 && i == 1) break;
-                    int flag = 0;
-                    int destination = piece.Square + (perspective * Piece.PawnMoves[i]);
-                    if (destination < 8 || destination > 54)
-                        flag = Move.MFlag.Promoting;
-                    if (!TryGetPieceFromSquare(destination, out Piece _))
-                    {
-                        if (flag == Move.MFlag.Promoting)
-                        {
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToKnight));
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToBishop));
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToRook));
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToQueen));
-                        }
-                        moves.Add(new Move(piece.Square, destination, piece, i));
-                    }
-                    else break; //If it is blocked, there is no use in checking if the pawn can move up further.
-                } 
-            }
-
-            for (int i = 0; i < Piece.PawnCaptures.Count; i++)
+            #region Pinned
+            if (SquarePinned(sq, out Piece pinningPiece))
             {
-                int destination; int flag = Move.MFlag.None;
-                if (piece.Color == Piece.PColor.White && SquareExists(piece.Square, Piece.PawnCaptures[i], false))
-                    destination = piece.Square + Piece.PawnCaptures[i];
-                else if ((piece.Color == Piece.PColor.Black && SquareExists(piece.Square, Piece.PawnCaptures[i], true)))
-                    destination = piece.Square - Piece.PawnCaptures[i];
-                else
-                    continue;
-                Piece enemyPiece;
-                // Check if I can capture a king, then return. 
-                if (!firstPass && TryGetPieceFromSquare(destination, out enemyPiece)) {
-                    if (enemyPiece.Type == Piece.PType.King) {
-                        moves.Add(new Move(piece.Square, destination, piece, flag, enemyPiece));
-                        return moves;
-                    }
-                }
-                if (destination < 8 || destination > 54)
-                    flag = Move.MFlag.Promoting;
-                if (TryGetPieceFromSquare(destination, out enemyPiece))
+                // Capture pinning piece?
+                if ((pinningPiece.Square.Item1 == sq.File - 1 || pinningPiece.Square.Item1 == sq.File + 1) && pinningPiece.Square.Item2 = sq.Rank + direction)
                 {
-                    if (!Utils.SameColor(piece, enemyPiece))
+                    if (sq.Rank + direction == promotionRank)
+                        moves.AddRange(AddPromotionMoves(sq, Squares[pinningPiece.Square], pawn, p));
+                    else
+                        moves.Add(new Move(sq, Squares[pinningPiece.Square], pawn, 0, pinningPiece));
+                    return moves;
+                }
+                // Move towards pinning piece?
+                else if (Utils.DetermineAttackDirection(pawn, pinningPiece) == (0,direction))
+                {
+                    if (Squares[sq.File, sq.Rank + direction].Piece == null)
                     {
-                        if (flag == Move.MFlag.Promoting)
-                        {
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToKnight, enemyPiece));
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToBishop, enemyPiece));
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToRook, enemyPiece));
-                            moves.Add(new Move(piece.Square, destination, piece, Move.MFlag.PromotionToQueen, enemyPiece));
-                        }
-                        else
-                            moves.Add(new Move(piece.Square, destination, piece, flag, enemyPiece));
+                        //We can never promote as we are partially pinned.
+                        moves.Add(new Move(sq, Squares[sq.File, sq.Rank + direction], pawn));
+                    }
+                    // Can we push this pawn?
+                    if(sq.Rank == pushRank && Squares[sq.File, sq.Rank + 2 * direction].Piece == null)
+                    {
+                        moves.Add(new Move(sq, Squares[sq.File, sq.Rank + 2 * direction], pawn));
                     }
                 }
-            }
-
-            // Check for en passant
-            bool sameRank = Utils.SquareToFileRank(piece.Square).Item2 == Utils.SquareToFileRank(previousMove.Target).Item2;
-            if (firstPass && previousMove.Flag == Move.MFlag.PawnPush && sameRank) 
-            {
-                if (perspective == 1)
-                {
-                    if (previousMove.Target == piece.Square - 1)
-                        moves.Add(new Move(piece.Square, piece.Square + 7, piece, Move.MFlag.EnPassant, previousMove.Piece));
-                    else if (previousMove.Target == piece.Square + 1)
-                        moves.Add(new Move(piece.Square, piece.Square + 9, piece, Move.MFlag.EnPassant, previousMove.Piece));
-                }
+                // We are pinned and we can not
+                // 1) Capature our attacker
+                // 2a) Move Towards our attacker
+                // 2b) Push Towards our attacker
                 else
                 {
-                    if (previousMove.Target == piece.Square + 1)
-                        moves.Add(new Move(piece.Square, piece.Square - 7, piece, Move.MFlag.EnPassant, previousMove.Piece));
-                    else if (previousMove.Target == piece.Square - 1)
-                        moves.Add(new Move(piece.Square, piece.Square - 9, piece, Move.MFlag.EnPassant, previousMove.Piece));
+                    return moves;
                 }
             }
+            #endregion
+            #region Moving
+            // Can I move forward?
+            if (Squares[sq.File, sq.Rank + direction].Piece == null)
+            {
+                //Will I promote? 
+                if (sq.Rank + direction == promotionRank)
+                {
+                    moves.AddRange(AddPromotionMoves(sq, Squares[sq.File, sq.Rank + direction], pawn));
+                }
+                //No promotion
+                else
+                {
+                    moves.Add(new Move(sq, Squares[sq.File, sq.Rank + direction], pawn));
+                    // Can I push this pawn?
+                    if(sq.Rank == pushRank && Squares[sq.File, sq.Rank + 2 * direction].Piece == null)
+                    {
+                        moves.Add(new Move(sq, Squares[sq.File, sq.Rank + 2 * direction], pawn));
+                    }
+                }
+            }
+            #endregion
+            #region Capturing
+            // Would I promote on captue?
+            for (int file = -1; file <= 1; file += 2)
+            {
+                Square dest = Squares[sq.File + file, sq.Rank + direction];
+                if (dest.Sq == enPassantTargetSquare)
+                    moves.Add(new Move(sq, dest, pawn, Move.MFlag.EnPassant));//, Squares[sq.File + file, sq.Rank].Piece));
+                Piece p = dest.Piece;
+                if (p?.Color == Piece.GetOtherColor(pawn))
+                {
+                    if (sq.Rank + direction == promotionRank)
+                        moves.AddRange(AddPromotionMoves(sq, Squares[p.Square], pawn, p));
+                    else
+                        moves.Add(new Move(sq, Squares[p.Square], pawn, 0, p));
+                }
+            }
+            #endregion
             return moves;
+        }
+
+        private List<Move> AddPromotionMoves(Square orig, Square dest, Piece p, Piece p2 = null)
+        {
+            List<Move> moves;
+            moves.Add(new Move(orig, dest, p, Move.MFlag.PromotionToKnight), p2);
+            moves.Add(new Move(orig, dest, p, Move.MFlag.PromotionToBishop), p2);
+            moves.Add(new Move(orig, dest, p, Move.MFlag.PromotionToRook), p2);
+            moves.Add(new Move(orig, dest, p, Move.MFlag.PromotionToQueen), p2);
+            return moves;
+        }
+
+        private bool SquarePinned(Square sq, out Piece pinningPiece)
+        {
+            // If im not attacked, im not pinned
+            if (!sq.IsAttacked)
+                return false;
+            
+            foreach(Piece p in sq.GetAttackingPieces(turnWhite))
+            {
+                // Cant be pinned by pawns, knights or kings
+                if (p.LongRange)
+                {
+                    Piece king = Piece.GetPieces(Piece.PType.King, sq.Piece.Color, Pieces)[0];
+                    var dirToMe   = Utils.DetermineAttackAngle(p.Square, sq.Sq);
+                    var dirToKing = Utils.DetermineAttackAngle(p.Square, king.Square);
+                    if (dirToMe == dirToKing)
+                    {
+                        var dir = Utils.DetermineAttackDirection(p.Square, sq.Sq);
+                        var testSquare = sq.Sq;
+                        while(Utils.SquareExists(testSquare))
+                        {
+                            testSquare = (testSquare.Item1 + dir.Item1, testSquare.item2 + dir.Item2);
+                            var testPiece = Square[testSquare].Piece;
+                            // Im pinned
+                            if (testPiece == king)
+                            {
+                                pinningPiece = p;
+                                return true;
+                            }
+                            // There is a piece between me and the king.
+                            if (testPiece != null)
+                                break;                             
+                        }
+                    }
+                }
+            }
+        }
+
+        private List<(int, int)> GetSquaresInRay((int, int) sq1, (int, int) sq2, (int,int) dir)
+        {
+            List<(int,int)> squaresInRay = new List<(int, int)>();
+            int f1 = sq1.Item1;
+            int r1 = sq1.Item2;
+            int f2 = sq2.Item1;
+            int r2 = sq2.Item2;
+            while(f1 != f2 && r1 != r2)
+            {
+                squaresInRay.Add((f1,r2));
+                f1 += dir.Item1;
+                r1 += dir.Item2;
+            }
+            return squaresInRay;
         }
 
         public bool TryGetPieceFromSquare(int square, out Piece piece)

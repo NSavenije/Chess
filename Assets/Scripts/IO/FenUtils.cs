@@ -28,10 +28,11 @@ namespace Assets.Scripts
                         f += (int)char.GetNumericValue(c);
                         continue;
                     }
-                    int pieceCode = Utils.GetPieceFromChar(c);
-                    int square = (7 - rank) * 8 + f;
+                    Piece.PType type = Utils.GetPieceTypeFromChar(c);
+                    Piece.PColor color = Utils.GetPieceColorFromChar(c);
+                    (int, int) square = (7 - rank, 8 + f);
 
-                    Piece piece = new Piece(pieceCode, square, 0);
+                    Piece piece = new Piece(type, color, square, 0);
                     if (piece.Type == Piece.PType.Pawn && piece.Color == Piece.PColor.White && (7 - rank) > 1)
                         piece.PMoved = 100;
                     else if (piece.Type == Piece.PType.Pawn && piece.Color == Piece.PColor.Black && (7 - rank) < 6)
@@ -60,13 +61,16 @@ namespace Assets.Scripts
             if (!data[2].Contains("q"))
                 castles["q"] = false;
 
-            int enPassantSquare = -1;
+            (int,int) enPassantSquare = (-1,-1);
             if (data[3] != "-")
             {
-                enPassantSquare = Convert.ToInt32(data[3]);
+                enPassantSquare = Utils.GetSquareIdFromSquareName(data[3]);
             }
 
-            Board board = new Board(pieces, turnWhite, castles, enPassantSquare);
+            int halfMovesSinceLastCapture = (int)data[4];
+            int totalMoves = (int)data[5];
+
+            Board board = new Board(pieces, turnWhite, castles, enPassantSquare, halfMovesSinceLastCapture, totalMoves);
             return board;
         }
     }

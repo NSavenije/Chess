@@ -9,59 +9,38 @@ namespace Assets.Scripts
         public string Name {
             get { return GetPieceName(this); } 
         }
-        public int Code;
         public PType Type;
         public PColor Color;
-        public int Square;
+        public (int,int) Square;
         public int PMoved = 0;
         public bool LongRange = false;
-        public List<int> Movesets;
+        public List<(int,int)> Moveset;
 
-        public Piece(int code, int square, int moved)
+        public Piece(PType type, PColor color, (int,int) sq, int moved)
         {
-            Code = code;
-            Type = GetPieceType(code);
-            Color = GetColor(code);
-            Square = square;
+            Type = type;
+            Color = color;
+            Square = sq;
             PMoved = moved;
-            LongRange = IsLongRange(code);
-            Movesets = GetMovesets(GetPieceType(code));
+            LongRange = IsLongRange(type);
+            Moveset = GetMoveset(type);
         }
 
-        public const int None =   0; // 0-2nd
-        public const int Pawn =   1;
-        public const int Rook =   2;
-        public const int Knight = 3;
-        public const int Bishop = 4;
-        public const int Queen =  5;
-        public const int King =   6;
-
-        public const int White =  8;   //3rd
-        public const int Black =  16;  //4th
-
-        public const int Moved =  32;  //5th
-
-        public static List<int> PawnMoves = new List<int> { 8, 16 };
-        public static List<int> PawnCaptures = new List<int> { 7, 9 };
-        public static List<int> slides = new List<int> { -8, -1, 1, 8 };
-        public static List<int> diagonals = new List<int> { -9, -7, 7, 9 };
-        public static List<int> knightJumps = new List<int> { -17, -15, -10, -6, 6, 10, 15, 17 };
-
         public enum PType{
-            None,
-            Pawn,
-            Rook,
-            Knight,
-            Bishop,
-            Queen,
-            King
+            None = 0,
+            Pawn = 1,
+            Rook = 2,
+            Knight = 3,
+            Bishop = 4,
+            Queen = 5,
+            King = 6
         }
 
         public enum PColor
         {
-            None,
-            White,
-            Black
+            None = 0,
+            White = 8,
+            Black = 16
         }
 
         private static string GetPieceName(Piece p)
@@ -93,11 +72,6 @@ namespace Assets.Scripts
             return name;
         }
 
-        public static PColor GetColor(Piece p)
-        {
-            return GetColor(p.Code);
-        }
-
         public static PColor GetOtherColor(Piece p)
         {
             return GetOtherColor(p.Color);
@@ -118,32 +92,14 @@ namespace Assets.Scripts
             return pieces.FindAll(delegate (Piece p) { return p.Color == color; });
         }
 
-        public static PColor GetColor(int pieceCode)
+        public static bool IsLongRange(PType type)
         {
-            return IsWhite(pieceCode) ? PColor.White : PColor.Black;
-        }
-
-        static bool IsBitSet(int b, int pos)
-        {
-            return (b & (1 << pos)) != 0;
-        }
-
-        public static bool IsWhite(int piece)
-        {
-            if (IsBitSet(piece, 3))
+            if (type == PType.Rook || type == PType.Bishop || type == PType.Queen)
                 return true;
             return false;
         }
 
-        public static bool IsLongRange(int piece)
-        {
-            int type = piece % 8;
-            if (type == 2 || type == 4 || type == 5)
-                return true;
-            return false;
-        }
-
-        public static List<int> GetMovesets(PType type)
+        public static List<int> GetMoveset(PType type)
         {
             List<int> movesets = new List<int>();
             switch (type)
@@ -175,52 +131,15 @@ namespace Assets.Scripts
             return movesets;
         }
 
-        public static List<int> GetMovesets(int piece)
-        {
-            return GetMovesets(GetPieceType(piece));
-        }
-
-        public static PType GetPieceType(int piece)
-        {
-            int type = piece % 8;
-            PType res;
-            switch (type) {
-                case 1:
-                    res = PType.Pawn;
-                    break;
-                case 2:
-                    res = PType.Rook;
-                    break;
-                case 3:
-                    res = PType.Knight;
-                    break;
-                case 4:
-                    res = PType.Bishop;
-                    break;
-                case 5:
-                    res = PType.Queen;
-                    break;
-                case 6:
-                    res = PType.King;
-                    break;
-                default:
-                    res = PType.None;
-                    break;
-            }
-            //Debug.Log("type " + type + " res " + res);
-            return res;
-        }
-
-        public static bool HasMoved(int piece)
-        {
-            if (IsBitSet(piece, 5))
-                return true;
-            return false;
-        }
-
         public static string ToString(Piece p)
         {
             return $"{GetPieceName(p)}: Type: {p.Type.ToString()}, Color: {p.Color.ToString()}, #moves: {p.PMoved}";
         }
+
+        public static List<(int,int)> PawnMoves = new List<(int,int)> { (0,1), (0,2) };
+        public static List<(int,int)> PawnCaptures = new List<(int,int)> { (-1,1), (1,1) };
+        public static List<(int,int)> slides = new List<(int,int)> { (0,-1), (-1,0), (1,0), (0,1) };
+        public static List<(int,int)> diagonals = new List<(int,int)> { (-1,-1), (1,-1), (-1,1), (1,1) };
+        public static List<(int,int)> knightJumps = new List<(int,int)> { (-2,-1), (-2,1), (-1,-2), (-1,2), (1,-2), (1,2), (2,-1), (2,1) };
     }
 }

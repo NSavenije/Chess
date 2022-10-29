@@ -64,41 +64,37 @@ namespace Assets.Scripts
 
         public void HighlightLegalMoves(List<Move> legalmoves)
         {
-            foreach(Move square in legalmoves)
+            foreach(Move move in legalmoves)
             {
                 //Debug.Log("Squarenr " + square);
-                (int, int) fr = Utils.SquareToFileRank(square.Target);
-                squareRenderers[fr.Item1, fr.Item2].material.color = legalMoveSquareColor;
+                squareRenderers[move.Target.Item1, move.Target.Item2].material.color = legalMoveSquareColor;
             }
         }
 
-        public void SetActiveSquare(int square)
+        public void SetActiveSquare(Square square)
         {
             ResetBoardColors();
-            if (square >= 0)
-            {
-                (int, int) fr = Utils.SquareToFileRank(square);
-                squareRenderers[fr.Item1, fr.Item2].material.color = activeSquareColor;
-            }
+            if (square)
+                squareRenderers[square.Sq].material.color = activeSquareColor;
         }
 
-        public void UpdatePieceSprites(Piece[] pieces)
+        public void UpdatePieceSprites(Square[,] squares)
         {
-            for(int i = 0; i < 64; i++)
+            for(int file = 0; file < 8; file++)
             {
-                (int, int) fileRank = Utils.SquareToFileRank(i);
-                if (pieces[i] != null)
-                    squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[pieces[i].Code % 32];
-                else
-                    squarePieceRenderers[fileRank.Item1, fileRank.Item2].sprite = pieceSprites[0];
+                for (int rank = 0; rank < 8; rank++)
+                {
+                    //
+                    Piece p = squares[file,rank].Piece;
+                    if (p != null)
+                    { 
+                        int index = (int)p.Type + (int)p.Color;
+                        squarePieceRenderers[file, file].sprite = pieceSprites[index];
+                    }
+                    else
+                        squarePieceRenderers[file, rank].sprite = pieceSprites[0];
+               }
             }
-        }
-
-        
-
-        void Update()
-        {
-
         }
     }
 }

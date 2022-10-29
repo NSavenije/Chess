@@ -14,56 +14,56 @@ namespace Assets.Scripts
             return rank * 8 + file;
         }
 
-        public static int GetPieceFromChar(char c)
+        public static Piece.PColor GetPieceColorFromChar(char c)
         {
-            int piece = 0;
-            char pieceCode = c;
-            if (char.IsUpper(c))
-            {
-                piece = Piece.White;
-                pieceCode = char.ToLower(c);
-            }
-            else
-            {
-                piece = Piece.Black;
-            }
+            return char.IsUpper(c) ? Piece.PColor.White : Piece.PColor.Black;
+        }
+
+        public static Piece.PType GetPieceTypeFromChar(char c)
+        {
+            Piece.PType piece;
+            char pieceCode = char.ToLower(c);
 
             switch (pieceCode)
             {
                 case 'p':
-                    piece |= Piece.Pawn;
+                    piece = Piece.PType.Pawn;
                     break;
                 case 'r':
-                    piece |= Piece.Rook;
+                    piece = Piece.PType.Rook;
                     break;
                 case 'n':
-                    piece |= Piece.Knight;
+                    piece = Piece.PType.Knight;
                     break;
                 case 'b':
-                    piece |= Piece.Bishop;
+                    piece = Piece.PType.Bishop;
                     break;
                 case 'q':
-                    piece |= Piece.Queen;
+                    piece = Piece.PType.Queen;
                     break;
                 case 'k':
-                    piece |= Piece.King;
+                    piece = Piece.PType.King;
                     break;
                 default:
-                    piece = Piece.None;
+                    piece = Piece.PType.None;
                     break;
             }
             return piece;
         }
 
-        public static int GetSquareFromCoordinate(Vector3 position)
+        public static (int, int) AddDir((int,int) sq1, (int,int) sq2)
+        {
+            return (sq1.Item1 + sq2.Item1, sq1.Item2 + sq2.Item2);
+        }
+
+        public static (int,int) GetSquareIdFromCoordinate(Vector3 position)
         {
             int file = (int)(Math.Floor(position.x) + 4);
             int rank = (int)(Math.Floor(position.y) + 4);
-            int square = Utils.FileRankToSquare(file, rank);
             if (rank >= 0 && rank < 8 && file >= 0 && file < 8)
-                return square;
+                return (file,rank);
             else
-                return -1;
+                return (-1,-1);
         }
 
         public static (int,int) GetFileRankDirFromSquareDir(int dir)
@@ -128,10 +128,13 @@ namespace Assets.Scripts
             return squareName;
         }
 
-        public static string GetSquareNameFromCoordinate(int squarenr)
+        public static (int,int) GetSquareIdFromSquareName(string name)
         {
-            (int, int) fr = SquareToFileRank(squarenr);
-            return GetSquareNameFromCoordinate(fr.Item1, fr.Item2);
+            char[] fr = name.ToCharArray();
+            //char 97 = a, char 104 = h
+            int file = Convert.ToInt32(fr[0]) - 97;
+            int rank = fr[1] - 1;
+            return(file,rank);
         }
 
         public static int FileRankToSquare(Vector2 pos)
@@ -144,6 +147,47 @@ namespace Assets.Scripts
             int file = square % 8;
             int rank = square / 8;
             return (file, rank);
+        }
+
+        // Determine Direction from sq1 to sq2. Only for attacking pieces.
+        public static (int, int) DetermineAttackDirection((int, int) sq1, (int, int) sq2)
+        {
+            (int, int) dir;
+            int f1 = sq1.Item1;
+            int r1 = sq1.Item2;
+            int f2 = sq2.Item1;
+            int r2 = sq2.Item2;
+            
+            int fd = f2 - f1;
+            int rd = r2 - r1;
+
+            // Rook or Queen
+            if (rd == 0)
+                return (fd / Math.Abs(fd), 0);
+
+            // Rook or Queen
+            if (fd == 0)
+                return (0, rd / Math.Abs(rd));
+
+            // Knight
+            if ((Math.Abs(fd) == 1 && Math.Abs(rd) == 2) || (Math.Abs(fd) == 2 && Math.Abs(rd) == 1))
+                return (fd, rd);
+
+            // Bishop or Queen
+            return (fd / Math.Abs(fd), rd / Math.Abs(rd));
+        }
+
+        public static double DetermineAttackAngle((int,int) origin, (int,int) target)
+        {
+            return Math.Atan2(target.Item2 - origin.Item2, target.Item1 - origin.Item1);
+        }
+
+        private bool SquareExists((int f ,int r) square)
+        {
+            return (square.f >= 0 &&
+                    square.r >= 0 &&
+                    square.f <= 7 &&
+                    square.r <= 7);
         }
 
         public static bool SameDiagonal(int s1, int s2, out int dir)

@@ -37,8 +37,7 @@ namespace Assets.Scripts
         {
             boardGraphics = BoardGraphics.GetComponent<BoardGraphics>();
             boardGraphics.CreateBoardGraphics();
-            Board = FenUtils.LoadFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -");
-            //Board = FenUtils.LoadFEN();
+            Board = FenUtils.LoadFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
             boardGraphics.UpdatePieceSprites(Board.Squares);
         }
@@ -62,28 +61,34 @@ namespace Assets.Scripts
                     if (Input.GetKeyDown(KeyCode.Mouse0))// && previousMove.Flag != Move.MFlag.Promoting)
                     {
                         Vector3 position = cam.ScreenToWorldPoint(Input.mousePosition);
-                        int square = Utils.GetSquareFromCoordinate(position);
-                        bool nonEmptySquare = Board.TryGetPieceFromSquare(square, out Piece piece);
-
+                        (int,int) squareId = Utils.GetSquareIdFromCoordinate(position);
+                        bool emptySquare = true;
+                        Square square;
+                        if (squareId.Item1 >= 0)
+                        {
+                            square = Board.Squares[squareId];
+                            if (square.Piece) emptySquare = false;
+                        }
+                    
                         // If no square was selected before, select a square.
-                        if (inputState == InputState.None && nonEmptySquare && Utils.SameColor(Board.turnWhite, Piece.IsWhite(piece.Code)))
+                        if (inputState == InputState.None && !emptySquare && Utils.SameColor(Board.turnWhite, (square.Piece.Color == Piece.PColor.White)))
                         {
                             Board.ActiveSquare = square;
                             inputState = InputState.Selected;
                             boardGraphics.SetActiveSquare(square);
-                            Board.legalMoves = Board.GetLegalMoves(piece);
+                            Board.legalMoves = Board.GetLegalMoves(square.Piece);
                             boardGraphics.HighlightLegalMoves(Board.legalMoves);
                         }
                         // If a second square is selected, move a piece.
                         else if (inputState == InputState.Selected)
                         {
-                            if (Board.legalMoves.Exists(x => x.Target == square))
+                            if (Board.legalMoves.Exists(x => x.Target == square.Sq))
                             {
-                                Board.DoMove(Board.legalMoves.Find(x => x.Target == square));
+                                Board.DoMove(Board.legalMoves.Find(x => x.Target == square.Sq));
                                 boardGraphics.UpdatePieceSprites(Board.Squares);
                             }
-                            Board.ActiveSquare = -1;
-                            boardGraphics.SetActiveSquare(-1);
+                            Board.ActiveSquare = null;
+                            boardGraphics.SetActiveSquare(null);
                             inputState = InputState.None;
                         }
                     }

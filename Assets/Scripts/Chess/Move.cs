@@ -12,8 +12,8 @@ namespace Assets.Scripts
         {
             get { return GetMoveName(this); }
         }
-        public int Start;
-        public int Target;
+        public Square Start;
+        public Square Target;
         public Piece Piece;
         public int Flag;
         public Piece CapturedPiece;
@@ -31,7 +31,7 @@ namespace Assets.Scripts
             public const int EnPassant = 8;
         }
 
-        public Move(int start, int target, Piece piece, int flag = MFlag.None, Piece capturedPiece = null)
+        public Move(Square start, Square target, Piece piece, int flag = MFlag.None, Piece capturedPiece = null)
         {
             Start = start;
             Target = target;
